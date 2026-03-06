@@ -6,4 +6,6 @@ sys.path.insert(0, str(Path(__file__).parent))
 import uvicorn
 
 if __name__ == "__main__":
-    uvicorn.run("app.main:app", host="127.0.0.1", port=8200, reload=True)
+    import os
+    host = os.environ.get("HOST", "0.0.0.0")
+    uvicorn.run("app.main:app", host=host, port=8200, reload=True)

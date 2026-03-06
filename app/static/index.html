@@ -2,7 +2,13 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#0369a1">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="CarCare">
+    <link rel="manifest" href="/static/manifest.json">
+    <link rel="apple-touch-icon" href="/static/icons/icon-192.png">
     <title>Care of your Car</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
@@ -112,10 +118,18 @@
                          :class="dragOver ? 'border-brand-500 bg-brand-50' : ''">
                         <svg class="w-10 h-10 mx-auto text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
                         <p class="text-gray-600 mb-2">Glissez un document ici ou</p>
-                        <label class="cursor-pointer bg-brand-600 text-white px-4 py-2 rounded-lg hover:bg-brand-700 transition inline-block">
-                            Parcourir
-                            <input type="file" class="hidden" accept=".pdf,.png,.jpg,.jpeg,.webp" @change="handleFileSelect($event)">
-                        </label>
+                        <div class="flex gap-2 justify-center flex-wrap">
+                            <label class="cursor-pointer bg-brand-600 text-white px-4 py-2 rounded-lg hover:bg-brand-700 transition inline-flex items-center gap-2">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                                Parcourir
+                                <input type="file" class="hidden" accept=".pdf,.png,.jpg,.jpeg,.webp" @change="handleFileSelect($event)">
+                            </label>
+                            <label class="cursor-pointer bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition inline-flex items-center gap-2">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                                Photo
+                                <input type="file" class="hidden" accept="image/*" capture="environment" @change="handleFileSelect($event)">
+                            </label>
+                        </div>
                         <div class="mt-2 flex justify-center gap-3">
                             <label class="text-sm text-gray-500">
                                 <input type="radio" x-model="uploadDocType" value="auto" class="mr-1"> Auto
@@ -300,5 +314,10 @@
     </main>
 
     <script src="/static/js/app.js"></script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/static/sw.js');
+        }
+    </script>
 </body>
 </html>
