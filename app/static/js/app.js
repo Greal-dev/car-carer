@@ -14,6 +14,8 @@ function app() {
         uploading: false,
         uploadResult: null,
         dragOver: false,
+        batchProgress: null,
+        batchResults: [],
 
         // Chat state
         chatVehicleId: null,
@@ -50,6 +52,8 @@ function app() {
             this.selectedVehicle = v;
             this.detailTab = 'maintenance';
             this.uploadResult = null;
+            this.batchProgress = null;
+            this.batchResults = [];
             await Promise.all([
                 this.loadMaintenance(v.id),
                 this.loadCTReports(v.id),
@@ -100,15 +104,74 @@ function app() {
         },
 
         handleFileSelect(event) {
-            const file = event.target.files[0];
-            if (file) this.uploadFile(file);
+            const files = Array.from(event.target.files);
+            if (files.length === 0) return;
+            if (files.length === 1) {
+                this.uploadFile(files[0]);
+            } else {
+                this.batchUpload(files);
+            }
             event.target.value = '';
         },
 
         handleDrop(event) {
             this.dragOver = false;
-            const file = event.dataTransfer.files[0];
-            if (file) this.uploadFile(file);
+            const files = Array.from(event.dataTransfer.files);
+            if (files.length === 0) return;
+            if (files.length === 1) {
+                this.uploadFile(files[0]);
+            } else {
+                this.batchUpload(files);
+            }
+        },
+
+        async batchUpload(files) {
+            if (!this.selectedVehicle) return;
+            this.uploading = true;
+            this.uploadResult = null;
+            this.batchProgress = { processed: 0, total: files.length, done: false };
+            this.batchResults = [];
+
+            const form = new FormData();
+            form.append('vehicle_id', this.selectedVehicle.id);
+            form.append('doc_type', this.uploadDocType);
+            for (const f of files) {
+                form.append('files', f);
+            }
+
+            try {
+                const res = await fetch('/api/documents/batch-upload', { method: 'POST', body: form });
+                const data = await res.json();
+
+                // Listen to SSE for progress
+                const evtSource = new EventSource(`/api/documents/batch-status/${data.batch_id}`);
+                evtSource.onmessage = async (event) => {
+                    const msg = JSON.parse(event.data);
+                    this.batchProgress = { ...this.batchProgress, ...msg };
+                    if (msg.result) {
+                        this.batchResults.push(msg.result);
+                    }
+                    if (msg.done) {
+                        evtSource.close();
+                        this.uploading = false;
+                        // Refresh all data
+                        await Promise.all([
+                            this.loadMaintenance(this.selectedVehicle.id),
+                            this.loadCTReports(this.selectedVehicle.id),
+                            this.loadDocuments(this.selectedVehicle.id),
+                            this.loadVehicles(),
+                        ]);
+                    }
+                };
+                evtSource.onerror = () => {
+                    evtSource.close();
+                    this.uploading = false;
+                    this.batchProgress = { ...this.batchProgress, done: true };
+                };
+            } catch (e) {
+                this.uploading = false;
+                this.batchProgress = { processed: 0, total: files.length, done: true, error_count: files.length, success_count: 0 };
+            }
         },
 
         // --- Chat ---

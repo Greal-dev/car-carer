@@ -1,13 +1,16 @@
+import asyncio
 import json
 import uuid
 from datetime import date
 from pathlib import Path
+from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Query
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from app.config import UPLOAD_PATH
-from app.database import get_db
+from app.database import get_db, SessionLocal
 from app.models import Document, Vehicle, MaintenanceEvent, MaintenanceItem, CTReport, CTDefect
 from app.schemas.document import DocumentOut, ExtractionResult
 from app.schemas.maintenance import MaintenanceEventOut
@@ -17,6 +20,9 @@ from app.services.extraction import extract_document
 router = APIRouter(prefix="/api/documents", tags=["documents"])
 
 ALLOWED_MIME = {"application/pdf", "image/png", "image/jpeg", "image/webp"}
+
+# In-memory batch job tracker
+_batch_jobs: dict[str, dict] = {}
 
 
 @router.post("/upload", response_model=ExtractionResult)
@@ -102,6 +108,169 @@ async def upload_and_extract(
         return ExtractionResult(
             success=True, doc_type="unknown", message="Document extrait mais type non identifie", data=data
         )
+
+
+@router.post("/batch-upload")
+async def batch_upload(
+    vehicle_id: int = Form(...),
+    doc_type: str = Form("auto"),
+    files: list[UploadFile] = File(...),
+    db: Session = Depends(get_db),
+):
+    """Upload multiple files at once. Returns a batch_id to track progress via SSE."""
+    vehicle = db.get(Vehicle, vehicle_id)
+    if not vehicle:
+        raise HTTPException(404, "Vehicule non trouve")
+
+    batch_id = uuid.uuid4().hex[:12]
+    saved_files = []
+
+    for f in files:
+        mime = f.content_type or "application/octet-stream"
+        if mime not in ALLOWED_MIME:
+            continue
+        ext = Path(f.filename).suffix if f.filename else ".bin"
+        filename = f"{uuid.uuid4().hex}{ext}"
+        file_path = UPLOAD_PATH / filename
+        content = await f.read()
+        file_path.write_bytes(content)
+        saved_files.append({
+            "file_path": str(file_path),
+            "original_filename": f.filename or "unknown",
+            "mime_type": mime,
+        })
+
+    _batch_jobs[batch_id] = {
+        "vehicle_id": vehicle_id,
+        "doc_type": doc_type,
+        "files": saved_files,
+        "total": len(saved_files),
+        "processed": 0,
+        "results": [],
+        "done": False,
+    }
+
+    # Launch processing in background
+    asyncio.get_event_loop().create_task(_process_batch(batch_id))
+
+    return {"batch_id": batch_id, "total": len(saved_files)}
+
+
+async def _process_batch(batch_id: str):
+    """Process all files in a batch sequentially."""
+    job = _batch_jobs[batch_id]
+    vehicle_id = job["vehicle_id"]
+    doc_type = job["doc_type"]
+
+    for i, file_info in enumerate(job["files"]):
+        db = SessionLocal()
+        try:
+            vehicle = db.get(Vehicle, vehicle_id)
+            result = await _process_single_file(db, vehicle, file_info, doc_type)
+            job["results"].append(result)
+        except Exception as e:
+            job["results"].append({
+                "filename": file_info["original_filename"],
+                "success": False,
+                "message": str(e),
+            })
+        finally:
+            db.close()
+        job["processed"] = i + 1
+
+    job["done"] = True
+
+
+async def _process_single_file(db: Session, vehicle: Vehicle, file_info: dict, doc_type: str) -> dict:
+    """Process a single file: create document, extract, enrich."""
+    doc = Document(
+        vehicle_id=vehicle.id,
+        doc_type=doc_type if doc_type != "auto" else "unknown",
+        file_path=file_info["file_path"],
+        original_filename=file_info["original_filename"],
+        mime_type=file_info["mime_type"],
+    )
+    db.add(doc)
+    db.commit()
+    db.refresh(doc)
+
+    try:
+        data = await extract_document(file_info["file_path"], doc_type)
+    except Exception as e:
+        return {"filename": file_info["original_filename"], "success": False, "message": f"Extraction: {e}"}
+
+    if "error" in data:
+        doc.extraction_raw = json.dumps(data, ensure_ascii=False)
+        db.commit()
+        return {"filename": file_info["original_filename"], "success": False, "message": data["error"]}
+
+    doc.extraction_raw = json.dumps(data, ensure_ascii=False)
+    doc.extracted = True
+    _enrich_vehicle(vehicle, data.get("vehicle_info"))
+
+    actual_type = data.get("doc_type", doc_type)
+    if actual_type in ("invoice", "quote"):
+        doc.doc_type = actual_type
+        _create_maintenance_event(db, vehicle.id, doc.id, data)
+        db.commit()
+        label = "Facture" if actual_type == "invoice" else "Devis"
+        return {
+            "filename": file_info["original_filename"],
+            "success": True,
+            "doc_type": actual_type,
+            "message": f"{label}: {len(data.get('items', []))} lignes",
+        }
+    elif actual_type == "ct_report" or "defects" in data:
+        doc.doc_type = "ct_report"
+        _create_ct_report(db, vehicle.id, doc.id, data)
+        db.commit()
+        return {
+            "filename": file_info["original_filename"],
+            "success": True,
+            "doc_type": "ct_report",
+            "message": f"CT: {data.get('result', '?')}, {len(data.get('defects', []))} defaut(s)",
+        }
+    else:
+        db.commit()
+        return {"filename": file_info["original_filename"], "success": True, "doc_type": "unknown", "message": "Type non identifie"}
+
+
+@router.get("/batch-status/{batch_id}")
+async def batch_status_sse(batch_id: str):
+    """SSE endpoint to stream batch processing progress."""
+    if batch_id not in _batch_jobs:
+        raise HTTPException(404, "Batch non trouve")
+
+    async def event_stream():
+        job = _batch_jobs[batch_id]
+        last_sent = -1
+        while True:
+            current = job["processed"]
+            if current > last_sent:
+                # Send progress update with latest result
+                payload = {
+                    "processed": current,
+                    "total": job["total"],
+                    "result": job["results"][-1] if job["results"] else None,
+                }
+                yield f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
+                last_sent = current
+            if job["done"]:
+                # Send final summary
+                success_count = sum(1 for r in job["results"] if r.get("success"))
+                summary = {
+                    "done": True,
+                    "processed": job["total"],
+                    "total": job["total"],
+                    "success_count": success_count,
+                    "error_count": job["total"] - success_count,
+                }
+                yield f"data: {json.dumps(summary, ensure_ascii=False)}\n\n"
+                del _batch_jobs[batch_id]
+                break
+            await asyncio.sleep(0.5)
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")
 
 
 def _enrich_vehicle(vehicle: Vehicle, vehicle_info: dict | None) -> None:
