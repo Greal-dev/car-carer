@@ -1,10 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models import Conversation, Message
 from app.schemas.chat import ChatRequest, ChatResponse, ConversationOut, MessageOut
 from app.services.agent import chat
+from app.services.alert_chat import alert_chat
 
 router = APIRouter(prefix="/api/chat", tags=["chat"])
 
@@ -91,3 +93,25 @@ def delete_conversation(conversation_id: int, db: Session = Depends(get_db)):
         raise HTTPException(404, "Conversation non trouvee")
     db.delete(conv)
     db.commit()
+
+
+class AlertChatRequest(BaseModel):
+    vehicle_id: int
+    alert: dict
+    messages: list[dict]  # [{"role": "user"/"assistant", "content": "..."}]
+
+
+class AlertChatResponse(BaseModel):
+    message: str
+
+
+@router.post("/alert", response_model=AlertChatResponse)
+def chat_about_alert(req: AlertChatRequest, db: Session = Depends(get_db)):
+    """Chat with GPT-4o-mini about a specific alert/defect."""
+    response = alert_chat(
+        vehicle_id=req.vehicle_id,
+        alert=req.alert,
+        messages=req.messages,
+        db=db,
+    )
+    return AlertChatResponse(message=response)

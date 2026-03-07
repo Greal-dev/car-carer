@@ -26,6 +26,11 @@ function app() {
         // Analysis state
         analysis: null,
         analysisLoading: false,
+        // Alert chat state
+        alertChat: null,        // current alert being discussed
+        alertMessages: [],
+        alertChatInput: '',
+        alertChatLoading: false,
 
         // Chat state
         chatVehicleId: null,
@@ -264,6 +269,57 @@ function app() {
 
         analysisLevelLabel(level) {
             return { critical: 'CRITIQUE', warning: 'ATTENTION', info: 'INFO', ok: 'OK' }[level] || level;
+        },
+
+        openAlertChat(alert) {
+            this.alertChat = alert;
+            this.alertMessages = [];
+            this.alertChatInput = '';
+            this.alertChatLoading = false;
+            // Auto-send initial question
+            this._sendAlertMessage("Explique-moi ce probleme, ses causes possibles, son impact, et ce que je dois faire.");
+        },
+
+        closeAlertChat() {
+            this.alertChat = null;
+            this.alertMessages = [];
+        },
+
+        async sendAlertMessage() {
+            const text = this.alertChatInput.trim();
+            if (!text) return;
+            this.alertChatInput = '';
+            await this._sendAlertMessage(text);
+        },
+
+        async _sendAlertMessage(text) {
+            this.alertMessages.push({ role: 'user', content: text });
+            this.alertChatLoading = true;
+            this.$nextTick(() => {
+                const el = this.$refs.alertChatMessages;
+                if (el) el.scrollTop = el.scrollHeight;
+            });
+
+            try {
+                const res = await fetch('/api/chat/alert', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        vehicle_id: this.selectedVehicle.id,
+                        alert: this.alertChat,
+                        messages: this.alertMessages,
+                    }),
+                });
+                const data = await res.json();
+                this.alertMessages.push({ role: 'assistant', content: data.message });
+            } catch (e) {
+                this.alertMessages.push({ role: 'assistant', content: 'Erreur de connexion: ' + e.message });
+            }
+            this.alertChatLoading = false;
+            this.$nextTick(() => {
+                const el = this.$refs.alertChatMessages;
+                if (el) el.scrollTop = el.scrollHeight;
+            });
         },
 
         // --- Chat ---

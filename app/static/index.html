@@ -248,10 +248,11 @@
                                             <div class="border rounded-lg p-3 bg-red-50 border-red-200">
                                                 <div class="flex items-start gap-2">
                                                     <span class="text-xs px-2 py-0.5 rounded-full font-bold bg-red-100 text-red-700 whitespace-nowrap mt-0.5">CRITIQUE</span>
-                                                    <div>
+                                                    <div class="flex-1">
                                                         <p class="font-medium text-red-800 text-sm" x-text="a.title"></p>
                                                         <p class="text-xs text-red-700 mt-1 whitespace-pre-line" x-text="a.detail"></p>
                                                     </div>
+                                                    <button @click="openAlertChat(a)" class="text-xs px-3 py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition whitespace-nowrap flex-shrink-0">Comprendre</button>
                                                 </div>
                                             </div>
                                         </template>
@@ -270,10 +271,11 @@
                                             <div class="border rounded-lg p-3 bg-orange-50 border-orange-200">
                                                 <div class="flex items-start gap-2">
                                                     <span class="text-xs px-2 py-0.5 rounded-full font-bold bg-orange-100 text-orange-700 whitespace-nowrap mt-0.5">ATTENTION</span>
-                                                    <div>
+                                                    <div class="flex-1">
                                                         <p class="font-medium text-orange-800 text-sm" x-text="a.title"></p>
                                                         <p class="text-xs text-orange-700 mt-1 whitespace-pre-line" x-text="a.detail"></p>
                                                     </div>
+                                                    <button @click="openAlertChat(a)" class="text-xs px-3 py-1.5 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition whitespace-nowrap flex-shrink-0">Comprendre</button>
                                                 </div>
                                             </div>
                                         </template>
@@ -289,17 +291,17 @@
                                 </h4>
                                 <div class="grid gap-2">
                                     <template x-for="a in (analysis?.maintenance_intervals || [])" :key="a.title">
-                                        <div class="border rounded-lg p-3 flex items-center justify-between"
+                                        <div class="border rounded-lg p-3 flex items-center gap-3"
                                              :class="a.level === 'warning' ? 'bg-orange-50 border-orange-200' : a.level === 'ok' ? 'bg-green-50 border-green-200' : 'bg-blue-50 border-blue-200'">
                                             <div class="flex-1">
                                                 <p class="font-medium text-sm" x-text="a.maintenance_type || a.title"></p>
                                                 <p class="text-xs text-gray-600 mt-0.5" x-text="a.last_date ? 'Dernier : ' + a.last_date + (a.last_km ? ' (' + a.last_km.toLocaleString() + ' km)' : '') : 'Aucun historique'"></p>
                                             </div>
-                                            <div class="text-right">
+                                            <div class="text-right flex items-center gap-2">
                                                 <span class="text-xs px-2 py-1 rounded-full font-bold"
                                                       :class="a.level === 'warning' ? 'bg-orange-100 text-orange-700' : a.level === 'ok' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'"
                                                       x-text="a.level === 'warning' ? 'EN RETARD' : a.level === 'ok' ? 'A JOUR' : 'INCONNU'"></span>
-                                                <p x-show="a.km_since" class="text-xs text-gray-500 mt-1" x-text="a.km_since ? a.km_since.toLocaleString() + ' km depuis' : ''"></p>
+                                                <button x-show="a.level !== 'ok'" @click="openAlertChat(a)" class="text-xs px-2 py-1 bg-gray-600 text-white rounded hover:bg-gray-700 transition" title="Discuter avec l'IA">?</button>
                                             </div>
                                         </div>
                                     </template>
@@ -328,6 +330,47 @@
                                 <svg class="w-16 h-16 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                                 <p class="text-lg font-medium">Aucune alerte</p>
                                 <p class="text-sm text-gray-500">Votre vehicule est en bonne sante</p>
+                            </div>
+
+                            <!-- Alert Chat Panel -->
+                            <div x-show="alertChat" class="mt-6 border-2 border-brand-300 rounded-xl overflow-hidden" x-cloak>
+                                <div class="bg-brand-700 text-white px-4 py-3 flex items-center justify-between">
+                                    <div class="flex items-center gap-2">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/></svg>
+                                        <span class="font-medium text-sm truncate" x-text="alertChat?.title"></span>
+                                    </div>
+                                    <button @click="closeAlertChat()" class="text-white/70 hover:text-white">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                                    </button>
+                                </div>
+                                <div x-ref="alertChatMessages" class="h-80 overflow-y-auto p-4 space-y-3 bg-gray-50">
+                                    <template x-for="(msg, i) in alertMessages" :key="i">
+                                        <div :class="msg.role === 'user' ? 'flex justify-end' : 'flex justify-start'">
+                                            <div :class="msg.role === 'user' ? 'bg-brand-600 text-white' : 'bg-white text-gray-800 border'" class="max-w-[85%] rounded-2xl px-4 py-3 shadow-sm">
+                                                <div class="text-sm whitespace-pre-wrap" x-html="msg.role === 'assistant' ? formatMarkdown(msg.content) : msg.content"></div>
+                                            </div>
+                                        </div>
+                                    </template>
+                                    <div x-show="alertChatLoading" class="flex justify-start">
+                                        <div class="bg-white border rounded-2xl px-4 py-3 shadow-sm">
+                                            <div class="flex gap-1">
+                                                <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                                                <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0.1s"></div>
+                                                <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="border-t bg-white p-3">
+                                    <form @submit.prevent="sendAlertMessage()" class="flex gap-2">
+                                        <input x-model="alertChatInput" type="text" placeholder="Posez une question sur cette alerte..."
+                                               class="flex-1 border rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+                                               :disabled="alertChatLoading">
+                                        <button type="submit" :disabled="alertChatLoading || !alertChatInput.trim()" class="bg-brand-600 text-white px-4 rounded-xl hover:bg-brand-700 transition disabled:opacity-50 text-sm">
+                                            Envoyer
+                                        </button>
+                                    </form>
+                                </div>
                             </div>
                         </div>
                     </div>
