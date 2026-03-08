@@ -21,7 +21,7 @@ from app.models import (  # noqa: F401
     User, Vehicle, ShareLink, Document,
     MaintenanceEvent, MaintenanceItem,
     CTReport, CTDefect, Conversation, Message,
-    FuelEntry,
+    FuelEntry, Warranty,
 )
 from app.main import app
 from fastapi.testclient import TestClient

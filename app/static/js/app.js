@@ -71,6 +71,14 @@ function app() {
         showFuelForm: false,
         vehiclePhotoUrl: null,
 
+        // Sprint 7: Reminders & Warranties
+        reminders: null,
+        remindersLoading: false,
+        warranties: [],
+        showWarrantyForm: false,
+        newWarranty: { item_id: '', description: '', duration_months: '', max_km: '', start_date: '' },
+        reminderBadge: 0,
+
         // Chat state
         chatVehicleId: null,
         conversations: [],
@@ -595,6 +603,58 @@ function app() {
             } else {
                 this.vehiclePhotoUrl = null;
             }
+        },
+
+        // --- Sprint 7: Reminders & Warranties ---
+        async loadReminders() {
+            if (!this.selectedVehicle) return;
+            this.remindersLoading = true;
+            try {
+                const res = await fetch(`/api/vehicles/${this.selectedVehicle.id}/reminders`);
+                if (res.ok) {
+                    this.reminders = await res.json();
+                    this.reminderBadge = this.reminders.counts.critical + this.reminders.counts.high;
+                }
+            } finally { this.remindersLoading = false; }
+        },
+
+        async loadWarranties() {
+            if (!this.selectedVehicle) return;
+            const res = await fetch(`/api/vehicles/${this.selectedVehicle.id}/warranties`);
+            if (res.ok) this.warranties = await res.json();
+        },
+
+        async addWarranty() {
+            if (!this.selectedVehicle) return;
+            const data = {
+                item_id: parseInt(this.newWarranty.item_id),
+                description: this.newWarranty.description,
+                duration_months: this.newWarranty.duration_months ? parseInt(this.newWarranty.duration_months) : null,
+                max_km: this.newWarranty.max_km ? parseInt(this.newWarranty.max_km) : null,
+                start_date: this.newWarranty.start_date,
+            };
+            const res = await fetch(`/api/vehicles/${this.selectedVehicle.id}/warranties`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data),
+            });
+            if (res.ok) {
+                this.newWarranty = { item_id: '', description: '', duration_months: '', max_km: '', start_date: '' };
+                this.showWarrantyForm = false;
+                await Promise.all([this.loadWarranties(), this.loadReminders()]);
+            }
+        },
+
+        async deleteWarranty(wId) {
+            if (!confirm('Supprimer cette garantie ?')) return;
+            await fetch(`/api/vehicles/${this.selectedVehicle.id}/warranties/${wId}`, { method: 'DELETE' });
+            await Promise.all([this.loadWarranties(), this.loadReminders()]);
+        },
+
+        reminderPriorityColor(p) {
+            return { critical: 'bg-red-100 text-red-800 border-red-200', high: 'bg-orange-100 text-orange-800 border-orange-200', medium: 'bg-yellow-100 text-yellow-800 border-yellow-200', low: 'bg-gray-100 text-gray-600 border-gray-200' }[p] || 'bg-gray-100';
+        },
+
+        reminderPriorityLabel(p) {
+            return { critical: 'URGENT', high: 'Important', medium: 'A prevoir', low: 'Info' }[p] || p;
         },
 
         // --- Sprint 4: Filters & Search ---

@@ -11,9 +11,9 @@ from sqlalchemy import func, extract
 from sqlalchemy.orm import Session, joinedload
 
 from app.database import get_db
-from app.models import Vehicle, MaintenanceEvent, MaintenanceItem, CTReport, CTDefect, Document, ShareLink, FuelEntry
+from app.models import Vehicle, MaintenanceEvent, MaintenanceItem, CTReport, CTDefect, Document, ShareLink, FuelEntry, Warranty
 from app.models.user import User
-from app.schemas.vehicle import VehicleCreate, VehicleUpdate, VehicleOut, VehicleSummary, FuelEntryCreate, FuelEntryOut
+from app.schemas.vehicle import VehicleCreate, VehicleUpdate, VehicleOut, VehicleSummary, FuelEntryCreate, FuelEntryOut, WarrantyCreate, WarrantyOut
 from app.services.analysis import analyze_vehicle
 from app.routers.auth import get_current_user
 
@@ -790,3 +790,146 @@ def get_vehicle_photo(vehicle_id: int, user: User = Depends(get_current_user), d
     if not filepath.exists():
         raise HTTPException(404, "Fichier photo introuvable")
     return FileResponse(str(filepath))
+
+
+# --- Warranties ---
+
+@router.post("/{vehicle_id}/warranties", status_code=201)
+def add_warranty(vehicle_id: int, data: WarrantyCreate, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Add a warranty for a maintenance item."""
+    _get_vehicle_or_404(vehicle_id, user, db)
+    item = db.get(MaintenanceItem, data.item_id)
+    if not item:
+        raise HTTPException(404, "Item non trouve")
+    # Verify item belongs to this vehicle
+    event = db.get(MaintenanceEvent, item.event_id)
+    if not event or event.vehicle_id != vehicle_id:
+        raise HTTPException(404, "Item non trouve pour ce vehicule")
+
+    end_date = data.end_date
+    if not end_date and data.duration_months and data.start_date:
+        from dateutil.relativedelta import relativedelta
+        end_date = data.start_date + relativedelta(months=data.duration_months)
+
+    warranty = Warranty(
+        item_id=data.item_id, vehicle_id=vehicle_id,
+        description=data.description, duration_months=data.duration_months,
+        max_km=data.max_km, start_date=data.start_date, end_date=end_date,
+    )
+    db.add(warranty)
+    db.commit()
+    db.refresh(warranty)
+    return WarrantyOut.model_validate(warranty)
+
+
+@router.get("/{vehicle_id}/warranties", response_model=list[WarrantyOut])
+def list_warranties(vehicle_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    _get_vehicle_or_404(vehicle_id, user, db)
+    return db.query(Warranty).filter(Warranty.vehicle_id == vehicle_id).order_by(Warranty.end_date).all()
+
+
+@router.delete("/{vehicle_id}/warranties/{warranty_id}", status_code=204)
+def delete_warranty(vehicle_id: int, warranty_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    _get_vehicle_or_404(vehicle_id, user, db)
+    w = db.get(Warranty, warranty_id)
+    if not w or w.vehicle_id != vehicle_id:
+        raise HTTPException(404, "Garantie non trouvee")
+    db.delete(w)
+    db.commit()
+
+
+# --- Reminders (consolidated) ---
+
+@router.get("/{vehicle_id}/reminders")
+def get_reminders(vehicle_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Consolidated reminders: maintenance intervals + CT + expiring warranties."""
+    from datetime import date as dt_date
+    from dateutil.relativedelta import relativedelta
+
+    _get_vehicle_or_404(vehicle_id, user, db)
+    reminders = []
+
+    # 1. Maintenance interval reminders (from analysis)
+    analysis = analyze_vehicle(db, vehicle_id)
+    for interval in analysis.get("maintenance_intervals", []):
+        if interval["level"] in ("warning", "info"):
+            reminders.append({
+                "type": "maintenance",
+                "priority": "high" if interval["level"] == "warning" else "medium",
+                "title": interval.get("maintenance_type", ""),
+                "detail": interval.get("detail", ""),
+                "source": "interval",
+            })
+
+    # 2. CT reminders
+    ct_status = analysis.get("current_ct_status")
+    if ct_status and ct_status.get("next_due"):
+        try:
+            due = dt_date.fromisoformat(ct_status["next_due"])
+            days_left = (due - dt_date.today()).days
+            if days_left < 0:
+                priority = "critical"
+                detail = f"En retard de {abs(days_left)} jours"
+            elif days_left < 30:
+                priority = "high"
+                detail = f"Dans {days_left} jours"
+            elif days_left < 90:
+                priority = "medium"
+                detail = f"Dans {days_left} jours ({ct_status['next_due']})"
+            else:
+                priority = "low"
+                detail = f"Le {ct_status['next_due']}"
+            reminders.append({
+                "type": "ct",
+                "priority": priority,
+                "title": "Controle technique",
+                "detail": detail,
+                "due_date": ct_status["next_due"],
+                "source": "ct",
+            })
+        except (ValueError, TypeError):
+            pass
+
+    # 3. Warranty expiration reminders
+    today = dt_date.today()
+    soon = today + relativedelta(months=2)
+    last_mileage = _get_last_known_mileage(db, vehicle_id)
+
+    warranties = db.query(Warranty).filter(Warranty.vehicle_id == vehicle_id).all()
+    for w in warranties:
+        expired_date = w.end_date and w.end_date < today
+        expired_km = w.max_km and last_mileage and last_mileage > w.max_km
+        expiring_soon_date = w.end_date and today <= w.end_date <= soon
+        expiring_soon_km = w.max_km and last_mileage and (w.max_km - last_mileage) < 5000
+
+        if expired_date or expired_km:
+            reminders.append({
+                "type": "warranty_expired",
+                "priority": "low",
+                "title": f"Garantie expiree : {w.description}",
+                "detail": f"Fin : {w.end_date}" + (f" ou {w.max_km:,} km" if w.max_km else ""),
+                "source": "warranty",
+            })
+        elif expiring_soon_date or expiring_soon_km:
+            reminders.append({
+                "type": "warranty_expiring",
+                "priority": "medium",
+                "title": f"Garantie bientot expiree : {w.description}",
+                "detail": f"Fin : {w.end_date}" + (f" ou {w.max_km:,} km" if w.max_km else ""),
+                "source": "warranty",
+            })
+
+    # Sort by priority
+    priority_order = {"critical": 0, "high": 1, "medium": 2, "low": 3}
+    reminders.sort(key=lambda r: priority_order.get(r["priority"], 9))
+
+    return {
+        "reminders": reminders,
+        "counts": {
+            "critical": len([r for r in reminders if r["priority"] == "critical"]),
+            "high": len([r for r in reminders if r["priority"] == "high"]),
+            "medium": len([r for r in reminders if r["priority"] == "medium"]),
+            "low": len([r for r in reminders if r["priority"] == "low"]),
+            "total": len(reminders),
+        },
+    }

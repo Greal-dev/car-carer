@@ -84,3 +84,26 @@ class FuelEntryOut(BaseModel):
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class WarrantyCreate(BaseModel):
+    item_id: int
+    description: str
+    duration_months: Optional[int] = None
+    max_km: Optional[int] = None
+    start_date: date
+    end_date: Optional[date] = None
+
+
+class WarrantyOut(BaseModel):
+    id: int
+    item_id: int
+    vehicle_id: int
+    description: str
+    duration_months: Optional[int]
+    max_km: Optional[int]
+    start_date: date
+    end_date: Optional[date]
+    created_at: datetime
+
+    model_config = {"from_attributes": True}

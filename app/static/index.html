@@ -458,6 +458,10 @@
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
                                     Calendrier
                                 </button>
+                                <button @click="detailTab = 'reminders'; loadReminders(); loadWarranties()" :class="detailTab === 'reminders' ? 'border-brand-500 text-brand-600' : 'border-transparent text-gray-500'" class="px-4 py-2 border-b-2 font-medium transition whitespace-nowrap relative">
+                                    Rappels
+                                    <span x-show="reminderBadge > 0" class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center" x-text="reminderBadge"></span>
+                                </button>
                                 <button @click="detailTab = 'fuel'; loadFuel()" :class="detailTab === 'fuel' ? 'border-brand-500 text-brand-600' : 'border-transparent text-gray-500'" class="px-4 py-2 border-b-2 font-medium transition whitespace-nowrap">Carburant</button>
                                 <button @click="detailTab = 'budget'; loadBudgetForecast(); loadPriceHistory()" :class="detailTab === 'budget' ? 'border-brand-500 text-brand-600' : 'border-transparent text-gray-500'" class="px-4 py-2 border-b-2 font-medium transition whitespace-nowrap">Budget</button>
                                 <button @click="detailTab = 'quotes'; loadQuoteComparison()" :class="detailTab === 'quotes' ? 'border-brand-500 text-brand-600' : 'border-transparent text-gray-500'" class="px-4 py-2 border-b-2 font-medium transition whitespace-nowrap">Devis</button>
@@ -788,6 +792,92 @@
                                 </div>
                                 <div x-show="!statsLoading && !stats" class="text-center py-10 text-gray-400">
                                     Aucune statistique disponible. Importez des documents pour commencer.
+                                </div>
+                            </div>
+
+                            <!-- Reminders tab -->
+                            <div x-show="detailTab === 'reminders'">
+                                <div class="flex items-center justify-between mb-4">
+                                    <h3 class="text-lg font-bold text-gray-800">Rappels & Garanties</h3>
+                                </div>
+
+                                <!-- Reminder counts -->
+                                <div x-show="reminders" class="flex gap-3 mb-6">
+                                    <span x-show="reminders?.counts.critical" class="bg-red-100 text-red-800 px-3 py-1 rounded-full text-sm font-medium" x-text="reminders?.counts.critical + ' urgent(s)'"></span>
+                                    <span x-show="reminders?.counts.high" class="bg-orange-100 text-orange-800 px-3 py-1 rounded-full text-sm font-medium" x-text="reminders?.counts.high + ' important(s)'"></span>
+                                    <span x-show="reminders?.counts.medium" class="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-sm font-medium" x-text="reminders?.counts.medium + ' a prevoir'"></span>
+                                </div>
+
+                                <!-- Reminders list -->
+                                <div class="space-y-2 mb-8">
+                                    <template x-for="r in (reminders?.reminders || [])" :key="r.title + r.source">
+                                        <div class="border rounded-lg p-3 flex items-start gap-3" :class="reminderPriorityColor(r.priority)">
+                                            <span class="text-xs font-bold px-2 py-0.5 rounded" :class="r.priority === 'critical' ? 'bg-red-600 text-white' : r.priority === 'high' ? 'bg-orange-500 text-white' : 'bg-gray-300 text-gray-700'" x-text="reminderPriorityLabel(r.priority)"></span>
+                                            <div class="flex-1">
+                                                <p class="font-medium text-sm" x-text="r.title"></p>
+                                                <p class="text-xs text-gray-600 mt-0.5" x-text="r.detail"></p>
+                                            </div>
+                                            <span class="text-xs text-gray-400 capitalize" x-text="r.source"></span>
+                                        </div>
+                                    </template>
+                                    <div x-show="reminders && reminders.reminders.length === 0" class="text-center py-8 text-gray-400">Aucun rappel actif — tout est a jour !</div>
+                                </div>
+
+                                <!-- Warranties section -->
+                                <div class="border-t pt-6">
+                                    <div class="flex items-center justify-between mb-4">
+                                        <h4 class="font-bold text-gray-700">Garanties pieces</h4>
+                                        <button @click="showWarrantyForm = !showWarrantyForm" class="bg-brand-600 text-white px-3 py-1.5 rounded-lg hover:bg-brand-700 text-sm">+ Garantie</button>
+                                    </div>
+
+                                    <!-- Add warranty form -->
+                                    <div x-show="showWarrantyForm" class="bg-gray-50 border rounded-lg p-4 mb-4">
+                                        <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                                            <div>
+                                                <label class="block text-xs text-gray-500 mb-1">ID de l'item *</label>
+                                                <input x-model="newWarranty.item_id" type="number" placeholder="ID item" class="w-full border rounded-lg px-3 py-2 text-sm">
+                                            </div>
+                                            <div>
+                                                <label class="block text-xs text-gray-500 mb-1">Description *</label>
+                                                <input x-model="newWarranty.description" type="text" placeholder="Garantie plaquettes..." class="w-full border rounded-lg px-3 py-2 text-sm">
+                                            </div>
+                                            <div>
+                                                <label class="block text-xs text-gray-500 mb-1">Date debut *</label>
+                                                <input x-model="newWarranty.start_date" type="date" class="w-full border rounded-lg px-3 py-2 text-sm">
+                                            </div>
+                                            <div>
+                                                <label class="block text-xs text-gray-500 mb-1">Duree (mois)</label>
+                                                <input x-model="newWarranty.duration_months" type="number" placeholder="24" class="w-full border rounded-lg px-3 py-2 text-sm">
+                                            </div>
+                                            <div>
+                                                <label class="block text-xs text-gray-500 mb-1">Km max</label>
+                                                <input x-model="newWarranty.max_km" type="number" placeholder="50000" class="w-full border rounded-lg px-3 py-2 text-sm">
+                                            </div>
+                                            <div class="flex items-end">
+                                                <button @click="addWarranty()" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 text-sm w-full">Ajouter</button>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Warranties list -->
+                                    <div class="space-y-2">
+                                        <template x-for="w in warranties" :key="w.id">
+                                            <div class="bg-white border rounded-lg p-3 flex items-center justify-between group hover:shadow-sm">
+                                                <div>
+                                                    <p class="font-medium text-sm" x-text="w.description"></p>
+                                                    <p class="text-xs text-gray-500">
+                                                        <span x-text="'Du ' + w.start_date"></span>
+                                                        <template x-if="w.end_date"><span x-text="' au ' + w.end_date"></span></template>
+                                                        <template x-if="w.max_km"><span x-text="' ou ' + w.max_km.toLocaleString() + ' km'"></span></template>
+                                                    </p>
+                                                </div>
+                                                <button @click="deleteWarranty(w.id)" class="text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition">
+                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                                </button>
+                                            </div>
+                                        </template>
+                                        <div x-show="warranties.length === 0" class="text-center py-6 text-gray-400 text-sm">Aucune garantie enregistree</div>
+                                    </div>
                                 </div>
                             </div>
 
