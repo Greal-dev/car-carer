@@ -15,12 +15,21 @@ from app.models import Vehicle, MaintenanceEvent, MaintenanceItem, CTReport, CTD
 from app.models.user import User
 from app.schemas.vehicle import VehicleCreate, VehicleUpdate, VehicleOut, VehicleSummary, FuelEntryCreate, FuelEntryOut, WarrantyCreate, WarrantyOut
 from app.services.analysis import analyze_vehicle
+from app.services.vin_decoder import decode_vin
 from app.routers.auth import get_current_user
 
 PHOTO_DIR = Path("./uploads/photos")
 PHOTO_DIR.mkdir(parents=True, exist_ok=True)
 
 router = APIRouter(prefix="/api/vehicles", tags=["vehicles"])
+
+
+# --- VIN decoder (must be before /{vehicle_id} routes) ---
+
+@router.get("/vin-decode")
+def vin_decode(vin: str = Query(..., min_length=17, max_length=17), user: User = Depends(get_current_user)):
+    """Decode a VIN to extract brand, country, year."""
+    return decode_vin(vin)
 
 
 # --- Dashboard (multi-vehicle overview) ---
@@ -342,10 +351,12 @@ def search_maintenance(
     event_type: Optional[str] = Query(None, description="invoice or quote"),
     date_from: Optional[str] = Query(None),
     date_to: Optional[str] = Query(None),
+    page: int = Query(1, ge=1),
+    limit: int = Query(50, ge=1, le=200),
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Search and filter maintenance events."""
+    """Search and filter maintenance events with pagination."""
     _get_vehicle_or_404(vehicle_id, user, db)
     query = (
         db.query(MaintenanceEvent)
@@ -375,15 +386,20 @@ def search_maintenance(
                 filtered.append(ev)
         events = filtered
 
-    return [
+    total = len(events)
+    start = (page - 1) * limit
+    paginated = events[start:start + limit]
+
+    items = [
         {
             "id": ev.id, "date": str(ev.date) if ev.date else None, "event_type": ev.event_type,
             "garage_name": ev.garage_name, "mileage": ev.mileage,
             "total_cost": float(ev.total_cost) if ev.total_cost else None,
             "items": [{"id": i.id, "description": i.description, "category": i.category, "total_price": float(i.total_price) if i.total_price else None} for i in ev.items],
         }
-        for ev in events
+        for ev in paginated
     ]
+    return {"items": items, "total": total, "page": page, "pages": (total + limit - 1) // limit if total else 0}
 
 
 # --- Calendar (upcoming maintenance) ---
@@ -668,10 +684,13 @@ def add_fuel_entry(vehicle_id: int, data: FuelEntryCreate, user: User = Depends(
     return result
 
 
-@router.get("/{vehicle_id}/fuel", response_model=list[FuelEntryOut])
-def list_fuel_entries(vehicle_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+@router.get("/{vehicle_id}/fuel")
+def list_fuel_entries(vehicle_id: int, page: int = Query(1, ge=1), limit: int = Query(50, ge=1, le=200), user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     _get_vehicle_or_404(vehicle_id, user, db)
-    return db.query(FuelEntry).filter(FuelEntry.vehicle_id == vehicle_id).order_by(FuelEntry.date.desc()).all()
+    query = db.query(FuelEntry).filter(FuelEntry.vehicle_id == vehicle_id).order_by(FuelEntry.date.desc())
+    total = query.count()
+    entries = query.offset((page - 1) * limit).limit(limit).all()
+    return {"items": [FuelEntryOut.model_validate(e).model_dump() for e in entries], "total": total, "page": page, "pages": (total + limit - 1) // limit if total else 0}
 
 
 @router.delete("/{vehicle_id}/fuel/{entry_id}", status_code=204)

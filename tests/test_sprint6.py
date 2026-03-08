@@ -50,7 +50,8 @@ def test_list_fuel_entries(auth_client):
     })
     res = auth_client.get(f"/api/vehicles/{v['id']}/fuel")
     assert res.status_code == 200
-    assert len(res.json()) == 2
+    assert res.json()["total"] == 2
+    assert len(res.json()["items"]) == 2
 
 
 def test_delete_fuel_entry(auth_client):
@@ -60,7 +61,7 @@ def test_delete_fuel_entry(auth_client):
     }).json()
     res = auth_client.delete(f"/api/vehicles/{v['id']}/fuel/{entry['id']}")
     assert res.status_code == 204
-    assert len(auth_client.get(f"/api/vehicles/{v['id']}/fuel").json()) == 0
+    assert auth_client.get(f"/api/vehicles/{v['id']}/fuel").json()["total"] == 0
 
 
 def test_fuel_stats_insufficient_data(auth_client):

@@ -15,3 +15,26 @@
 .chat-md pre code { background: none; padding: 0; }
 .chat-md p { margin: 0.3em 0; }
 .chat-md strong { font-weight: 700; }
+
+/* Dark mode */
+.dark { color-scheme: dark; }
+.dark body, .dark { background-color: #0f172a; color: #e2e8f0; }
+.dark .bg-gray-50 { background-color: #0f172a !important; }
+.dark .bg-white { background-color: #1e293b !important; }
+.dark .bg-gray-100 { background-color: #1e293b !important; }
+.dark .border { border-color: #334155 !important; }
+.dark .border-gray-200, .dark .border-gray-300 { border-color: #334155 !important; }
+.dark .text-gray-800, .dark .text-gray-900 { color: #f1f5f9 !important; }
+.dark .text-gray-700 { color: #e2e8f0 !important; }
+.dark .text-gray-600 { color: #cbd5e1 !important; }
+.dark .text-gray-500 { color: #94a3b8 !important; }
+.dark .text-gray-400 { color: #64748b !important; }
+.dark input, .dark select, .dark textarea { background-color: #1e293b !important; color: #e2e8f0 !important; border-color: #475569 !important; }
+.dark .shadow-sm, .dark .shadow-lg { box-shadow: 0 1px 3px rgba(0,0,0,0.4) !important; }
+.dark .border-dashed { border-color: #475569 !important; }
+.dark ::-webkit-scrollbar-thumb { background: #475569; }
+.dark .chat-md code { background: rgba(255,255,255,0.1); }
+.dark .chat-md pre { background: rgba(255,255,255,0.05); }
+.dark .bg-green-50, .dark .bg-red-50, .dark .bg-yellow-50, .dark .bg-orange-50, .dark .bg-blue-50 {
+    background-color: rgba(255,255,255,0.05) !important;
+}

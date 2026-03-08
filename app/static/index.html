@@ -105,6 +105,10 @@
                         </nav>
                         <div class="h-6 w-px bg-brand-500/50"></div>
                         <div class="flex items-center gap-2">
+                            <button @click="toggleDarkMode()" class="text-brand-200 hover:text-white transition" :title="darkMode ? 'Mode clair' : 'Mode sombre'">
+                                <svg x-show="!darkMode" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
+                                <svg x-show="darkMode" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+                            </button>
                             <span class="text-sm text-brand-200 hidden sm:inline" x-text="currentUser?.email"></span>
                             <button @click="doLogout()" class="text-brand-200 hover:text-white transition" title="Deconnexion">
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
@@ -240,10 +244,24 @@
                                         <label class="block text-sm font-medium text-gray-700 mb-1">Nom du vehicule *</label>
                                         <input x-model="newVehicle.name" type="text" required placeholder="Ex: Berlingo familial, Clio de Julie..." class="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-brand-500 focus:border-brand-500">
                                     </div>
-                                    <p class="text-xs text-gray-400">Les autres informations (marque, modele, plaque...) seront remplies automatiquement a partir de vos documents.</p>
+                                    <!-- VIN Decoder -->
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">VIN (optionnel)</label>
+                                        <div class="flex gap-2">
+                                            <input x-model="vinInput" type="text" maxlength="17" placeholder="17 caracteres..." class="flex-1 border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand-500 uppercase">
+                                            <button type="button" @click="decodeVin()" :disabled="vinInput.length !== 17" class="bg-brand-100 text-brand-700 px-3 py-2 rounded-lg text-sm font-medium hover:bg-brand-200 disabled:opacity-40">Decoder</button>
+                                        </div>
+                                        <div x-show="vinResult && vinResult.valid" class="mt-1 text-xs text-green-600">
+                                            <span x-show="vinResult?.brand" x-text="vinResult?.brand"></span>
+                                            <span x-show="vinResult?.year" x-text="' — ' + vinResult?.year"></span>
+                                            <span x-show="vinResult?.country" x-text="' (' + vinResult?.country + ')'"></span>
+                                        </div>
+                                        <div x-show="vinResult && !vinResult.valid" class="mt-1 text-xs text-red-500" x-text="vinResult?.error"></div>
+                                    </div>
+                                    <p class="text-xs text-gray-400">Scannez le VIN pour pre-remplir marque et annee, ou uploadez vos documents apres creation.</p>
                                 </div>
                                 <div class="flex gap-3 mt-6">
-                                    <button type="button" @click="showAddVehicle = false" class="flex-1 py-2 border rounded-lg hover:bg-gray-50">Annuler</button>
+                                    <button type="button" @click="showAddVehicle = false; vinResult = null; vinInput = ''" class="flex-1 py-2 border rounded-lg hover:bg-gray-50">Annuler</button>
                                     <button type="submit" class="flex-1 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700">Creer</button>
                                 </div>
                             </form>

@@ -79,6 +79,11 @@ function app() {
         newWarranty: { item_id: '', description: '', duration_months: '', max_km: '', start_date: '' },
         reminderBadge: 0,
 
+        // Sprint 8: Dark mode, VIN decoder
+        darkMode: localStorage.getItem('darkMode') === 'true',
+        vinInput: '',
+        vinResult: null,
+
         // Chat state
         chatVehicleId: null,
         conversations: [],
@@ -88,6 +93,7 @@ function app() {
         chatLoading: false,
 
         async init() {
+            if (this.darkMode) document.documentElement.classList.add('dark');
             await this.checkAuth();
         },
 
@@ -551,7 +557,7 @@ function app() {
                     fetch(`/api/vehicles/${this.selectedVehicle.id}/fuel`),
                     fetch(`/api/vehicles/${this.selectedVehicle.id}/fuel-stats`),
                 ]);
-                if (entriesRes.ok) this.fuelEntries = await entriesRes.json();
+                if (entriesRes.ok) { const data = await entriesRes.json(); this.fuelEntries = data.items || data; }
                 if (statsRes.ok) this.fuelStats = await statsRes.json();
             } finally { this.fuelLoading = false; }
         },
@@ -602,6 +608,25 @@ function app() {
                 this.vehiclePhotoUrl = `/api/vehicles/${this.selectedVehicle.id}/photo?t=${Date.now()}`;
             } else {
                 this.vehiclePhotoUrl = null;
+            }
+        },
+
+        // --- Sprint 8: Dark mode & VIN ---
+        toggleDarkMode() {
+            this.darkMode = !this.darkMode;
+            localStorage.setItem('darkMode', this.darkMode);
+            document.documentElement.classList.toggle('dark', this.darkMode);
+        },
+
+        async decodeVin() {
+            if (!this.vinInput || this.vinInput.length !== 17) return;
+            const res = await fetch(`/api/vehicles/vin-decode?vin=${encodeURIComponent(this.vinInput)}`);
+            if (res.ok) {
+                this.vinResult = await res.json();
+                // Auto-fill vehicle create form if available
+                if (this.vinResult.brand) this.newVehicle.brand = this.vinResult.brand;
+                if (this.vinResult.year) this.newVehicle.year = this.vinResult.year;
+                this.newVehicle.vin = this.vinInput;
             }
         },
 
@@ -671,7 +696,7 @@ function app() {
             if (f.date_from) params.set('date_from', f.date_from);
             if (f.date_to) params.set('date_to', f.date_to);
             const res = await fetch(`/api/vehicles/${this.selectedVehicle.id}/maintenance-search?${params}`);
-            if (res.ok) this.filteredMaintenance = await res.json();
+            if (res.ok) { const data = await res.json(); this.filteredMaintenance = data.items || data; }
         },
 
         clearFilter() {
