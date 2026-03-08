@@ -46,3 +46,4 @@ class Vehicle(Base):
     conversations = relationship("Conversation", back_populates="vehicle", cascade="all, delete-orphan")
     share_links = relationship("ShareLink", back_populates="vehicle", cascade="all, delete-orphan")
     fuel_entries = relationship("FuelEntry", back_populates="vehicle", cascade="all, delete-orphan")
+    warranties = relationship("Warranty", back_populates="vehicle", cascade="all, delete-orphan")

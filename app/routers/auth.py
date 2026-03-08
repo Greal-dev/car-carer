@@ -46,7 +46,7 @@ def register(body: RegisterRequest, response: Response, db: Session = Depends(ge
     db.refresh(user)
 
     token = create_token(user.id)
-    response.set_cookie(COOKIE_NAME, token, httponly=True, samesite="lax", max_age=72 * 3600)
+    response.set_cookie(COOKIE_NAME, token, httponly=True, samesite="strict", max_age=72 * 3600)
     return user
 
 
@@ -57,7 +57,7 @@ def login(body: LoginRequest, response: Response, db: Session = Depends(get_db))
         raise HTTPException(401, "Email ou mot de passe incorrect")
 
     token = create_token(user.id)
-    response.set_cookie(COOKIE_NAME, token, httponly=True, samesite="lax", max_age=72 * 3600)
+    response.set_cookie(COOKIE_NAME, token, httponly=True, samesite="strict", max_age=72 * 3600)
     return user
 
 

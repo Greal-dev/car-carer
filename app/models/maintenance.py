@@ -12,7 +12,7 @@ class MaintenanceEvent(Base):
     __tablename__ = "maintenance_events"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    vehicle_id: Mapped[int] = mapped_column(ForeignKey("vehicles.id"))
+    vehicle_id: Mapped[int] = mapped_column(ForeignKey("vehicles.id"), index=True)
     document_id: Mapped[Optional[int]] = mapped_column(ForeignKey("documents.id"), nullable=True)
     date: Mapped[date] = mapped_column(Date)
     mileage: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
@@ -41,3 +41,4 @@ class MaintenanceItem(Base):
     total_price: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
 
     event = relationship("MaintenanceEvent", back_populates="items")
+    warranties = relationship("Warranty", back_populates="item")

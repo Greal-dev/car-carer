@@ -44,6 +44,12 @@ def get_shared_vehicle(token: str, db: Session = Depends(get_db)):
     if not link:
         raise HTTPException(404, "Lien de partage invalide ou expire")
 
+    # Check expiration
+    if link.expires_at is not None:
+        from datetime import datetime
+        if link.expires_at < datetime.now():
+            raise HTTPException(404, "Lien de partage invalide ou expire")
+
     vehicle = db.get(Vehicle, link.vehicle_id)
     if not vehicle:
         raise HTTPException(404)

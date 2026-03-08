@@ -14,7 +14,7 @@ class FuelEntry(Base):
     __tablename__ = "fuel_entries"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    vehicle_id: Mapped[int] = mapped_column(ForeignKey("vehicles.id", ondelete="CASCADE"))
+    vehicle_id: Mapped[int] = mapped_column(ForeignKey("vehicles.id", ondelete="CASCADE"), index=True)
     date: Mapped[date] = mapped_column(Date)
     mileage: Mapped[int] = mapped_column(Integer)
     liters: Mapped[float] = mapped_column(Float)

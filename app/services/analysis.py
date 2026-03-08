@@ -10,6 +10,7 @@ from app.models import (
     Vehicle, MaintenanceEvent, MaintenanceItem,
     CTReport, CTDefect,
 )
+from app.services.mileage import get_last_known_mileage
 
 # --- Maintenance interval thresholds ---
 # (category_keywords, max_km, max_months, label)
@@ -214,7 +215,7 @@ def _analyze_ct_evolution(db: Session, vehicle_id: int) -> dict:
 def _check_maintenance_intervals(db: Session, vehicle_id: int) -> list[dict]:
     """Check if key maintenance items are overdue by km or time."""
     # Get latest mileage
-    latest_km = _get_latest_mileage(db, vehicle_id)
+    latest_km = get_last_known_mileage(db, vehicle_id)
     today = date.today()
     alerts = []
 
@@ -386,33 +387,6 @@ def _defect_key(defect: CTDefect) -> str:
     for noise in [",", ".", "avg", "avd", "arg", "ard"]:
         desc = desc.replace(noise, "")
     return desc[:60]
-
-
-def _get_latest_mileage(db: Session, vehicle_id: int) -> int | None:
-    """Get the most recent known mileage."""
-    candidates = []
-    last_ev = (
-        db.query(MaintenanceEvent)
-        .filter(MaintenanceEvent.vehicle_id == vehicle_id, MaintenanceEvent.mileage.isnot(None))
-        .order_by(MaintenanceEvent.date.desc())
-        .first()
-    )
-    if last_ev:
-        candidates.append((last_ev.date, last_ev.mileage))
-
-    last_ct = (
-        db.query(CTReport)
-        .filter(CTReport.vehicle_id == vehicle_id, CTReport.mileage.isnot(None))
-        .order_by(CTReport.date.desc())
-        .first()
-    )
-    if last_ct:
-        candidates.append((last_ct.date, last_ct.mileage))
-
-    if not candidates:
-        return None
-    candidates.sort(key=lambda x: x[0], reverse=True)
-    return candidates[0][1]
 
 
 def _months_between(d1: date, d2: date) -> int:

@@ -1,13 +1,12 @@
 import csv
 import io
-import shutil
 import uuid
 from pathlib import Path
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, UploadFile, File
 from fastapi.responses import Response as RawResponse, FileResponse
-from sqlalchemy import func, extract
+from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 
 from app.database import get_db
@@ -15,6 +14,7 @@ from app.models import Vehicle, MaintenanceEvent, MaintenanceItem, CTReport, CTD
 from app.models.user import User
 from app.schemas.vehicle import VehicleCreate, VehicleUpdate, VehicleOut, VehicleSummary, FuelEntryCreate, FuelEntryOut, WarrantyCreate, WarrantyOut
 from app.services.analysis import analyze_vehicle
+from app.services.mileage import get_last_known_mileage
 from app.services.vin_decoder import decode_vin
 from app.routers.auth import get_current_user
 
@@ -402,99 +402,6 @@ def search_maintenance(
     return {"items": items, "total": total, "page": page, "pages": (total + limit - 1) // limit if total else 0}
 
 
-# --- Calendar (upcoming maintenance) ---
-
-@router.get("/{vehicle_id}/calendar")
-def get_maintenance_calendar(vehicle_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    """Predict upcoming maintenance based on intervals."""
-    _get_vehicle_or_404(vehicle_id, user, db)
-    analysis = analyze_vehicle(db, vehicle_id)
-    from datetime import date
-    from dateutil.relativedelta import relativedelta
-
-    upcoming = []
-
-    # CT due date
-    ct_status = analysis.get("current_ct_status")
-    if ct_status and ct_status.get("next_due"):
-        upcoming.append({
-            "type": "Controle technique",
-            "due_date": ct_status["next_due"],
-            "priority": "high" if ct_status["next_due"] < str(date.today()) else "normal",
-            "source": "CT",
-        })
-
-    # Maintenance intervals overdue or coming up
-    for interval in analysis.get("maintenance_intervals", []):
-        if interval["level"] == "warning":
-            upcoming.append({
-                "type": interval.get("maintenance_type", interval.get("title", "")),
-                "due_date": str(date.today()),  # Already overdue
-                "priority": "overdue",
-                "detail": interval.get("detail", ""),
-                "source": "interval",
-            })
-        elif interval["level"] == "ok" and interval.get("last_date"):
-            # Estimate next due
-            from app.services.analysis import INTERVALS
-            for keywords, max_km, max_months, label in INTERVALS:
-                if label == interval.get("maintenance_type"):
-                    if max_months and interval["last_date"]:
-                        try:
-                            last = date.fromisoformat(interval["last_date"])
-                            next_due = last + relativedelta(months=max_months)
-                            upcoming.append({
-                                "type": label,
-                                "due_date": str(next_due),
-                                "priority": "normal",
-                                "source": "interval",
-                            })
-                        except (ValueError, TypeError):
-                            pass
-                    break
-
-    upcoming.sort(key=lambda x: x.get("due_date", "9999"))
-    return upcoming
-
-
-# --- Quote comparator ---
-
-@router.get("/{vehicle_id}/compare-quotes")
-def compare_quotes(vehicle_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    """Compare quotes (devis) for the same vehicle."""
-    _get_vehicle_or_404(vehicle_id, user, db)
-    quotes = (
-        db.query(MaintenanceEvent)
-        .options(joinedload(MaintenanceEvent.items))
-        .filter(MaintenanceEvent.vehicle_id == vehicle_id, MaintenanceEvent.event_type == "quote")
-        .order_by(MaintenanceEvent.date.desc())
-        .all()
-    )
-    if not quotes:
-        return {"quotes": [], "comparison": None}
-
-    # Build comparison: group items by category across quotes
-    all_categories = set()
-    quote_data = []
-    for q in quotes:
-        items_by_cat = {}
-        for item in q.items:
-            cat = item.category or item.description or "autre"
-            if cat not in items_by_cat:
-                items_by_cat[cat] = 0
-            items_by_cat[cat] += float(item.total_price or 0)
-            all_categories.add(cat)
-        quote_data.append({
-            "id": q.id, "date": str(q.date) if q.date else None, "garage": q.garage_name,
-            "total": float(q.total_cost) if q.total_cost else 0, "items_by_category": items_by_cat,
-        })
-
-    return {
-        "quotes": quote_data,
-        "categories": sorted(all_categories),
-    }
-
-
 # --- Budget forecast ---
 
 @router.get("/{vehicle_id}/budget-forecast")
@@ -625,33 +532,9 @@ def export_maintenance_booklet(vehicle_id: int, user: User = Depends(get_current
 
 # --- Mileage validation helper ---
 
-def _get_last_known_mileage(db: Session, vehicle_id: int) -> int | None:
-    """Get the highest known mileage for a vehicle from all sources."""
-    sources = []
-    last_ev = db.query(MaintenanceEvent.mileage).filter(
-        MaintenanceEvent.vehicle_id == vehicle_id, MaintenanceEvent.mileage.isnot(None)
-    ).order_by(MaintenanceEvent.mileage.desc()).first()
-    if last_ev:
-        sources.append(last_ev[0])
-
-    last_ct = db.query(CTReport.mileage).filter(
-        CTReport.vehicle_id == vehicle_id, CTReport.mileage.isnot(None)
-    ).order_by(CTReport.mileage.desc()).first()
-    if last_ct:
-        sources.append(last_ct[0])
-
-    last_fuel = db.query(FuelEntry.mileage).filter(
-        FuelEntry.vehicle_id == vehicle_id
-    ).order_by(FuelEntry.mileage.desc()).first()
-    if last_fuel:
-        sources.append(last_fuel[0])
-
-    return max(sources) if sources else None
-
-
 def _validate_mileage(db: Session, vehicle_id: int, new_mileage: int) -> dict | None:
     """Return a warning dict if mileage seems wrong, None if OK."""
-    last = _get_last_known_mileage(db, vehicle_id)
+    last = get_last_known_mileage(db, vehicle_id)
     if last is None:
         return None
     if new_mileage < last:
@@ -714,36 +597,32 @@ def get_fuel_stats(vehicle_id: int, user: User = Depends(get_current_user), db: 
         .all()
     )
 
+    total_liters = sum(e.liters for e in entries)
+    total_cost = sum(e.total_cost or 0 for e in entries)
+
     if len(entries) < 2:
-        return {"avg_consumption": None, "avg_cost_per_km": None, "total_liters": sum(e.liters for e in entries), "total_fuel_cost": sum(e.total_cost or 0 for e in entries), "monthly": [], "entries_count": len(entries)}
+        return {"avg_consumption": None, "avg_cost_per_km": None, "total_liters": round(total_liters, 2), "total_fuel_cost": round(total_cost, 2), "monthly": [], "entries_count": len(entries), "consumptions": []}
 
-    # Consumption: only between consecutive full-tank fills
+    # Consumption: between consecutive full-tank fills (O(n) single pass)
+    # Track liters accumulated since the last full-tank entry
     consumptions = []
-    total_liters = 0
-    total_cost = 0
-    for e in entries:
-        total_liters += e.liters
-        total_cost += e.total_cost or 0
+    last_full_index = None
+    liters_since_last_full = 0
 
-    # Calculate L/100km between consecutive entries with full_tank
-    full_entries = [e for e in entries if e.full_tank]
-    liters_between = 0
     for i, e in enumerate(entries):
-        if i == 0:
-            continue
-        liters_between += e.liters
-        if e.full_tank and entries[i-1].full_tank if i == 1 else e.full_tank:
-            # Find last full tank before this one
-            prev_full = None
-            for j in range(i - 1, -1, -1):
-                if entries[j].full_tank:
-                    prev_full = entries[j]
-                    break
-            if prev_full and e.mileage > prev_full.mileage:
-                km = e.mileage - prev_full.mileage
-                liters_sum = sum(entries[k].liters for k in range(entries.index(prev_full) + 1, i + 1))
+        if i > 0:
+            liters_since_last_full += e.liters
+
+        if e.full_tank:
+            if last_full_index is not None:
+                prev = entries[last_full_index]
+                km = e.mileage - prev.mileage
                 if km > 0:
-                    consumptions.append({"l100": round(liters_sum / km * 100, 2), "km": km, "date": str(e.date)})
+                    l100 = round(liters_since_last_full / km * 100, 2)
+                    consumptions.append({"l100": l100, "km": km, "date": str(e.date)})
+            # Reset accumulator
+            liters_since_last_full = 0
+            last_full_index = i
 
     avg_consumption = round(sum(c["l100"] for c in consumptions) / len(consumptions), 2) if consumptions else None
 
@@ -781,12 +660,18 @@ def upload_vehicle_photo(vehicle_id: int, file: UploadFile = File(...), user: Us
     if file.content_type not in ("image/jpeg", "image/png", "image/webp"):
         raise HTTPException(400, "Format non supporte (JPEG, PNG ou WebP)")
 
+    # Read file into memory and check size (max 5 MB)
+    MAX_PHOTO_SIZE = 5 * 1024 * 1024  # 5 MB
+    contents = file.file.read()
+    if len(contents) > MAX_PHOTO_SIZE:
+        raise HTTPException(413, f"Photo trop volumineuse ({len(contents) // 1024 // 1024} MB). Maximum: 5 MB")
+
     ext = file.filename.rsplit(".", 1)[-1] if "." in file.filename else "jpg"
     filename = f"{vehicle_id}_{uuid.uuid4().hex[:8]}.{ext}"
     filepath = PHOTO_DIR / filename
 
     with open(filepath, "wb") as f:
-        shutil.copyfileobj(file.file, f)
+        f.write(contents)
 
     # Delete old photo if exists
     if vehicle.photo_path:
@@ -912,7 +797,7 @@ def get_reminders(vehicle_id: int, user: User = Depends(get_current_user), db: S
     # 3. Warranty expiration reminders
     today = dt_date.today()
     soon = today + relativedelta(months=2)
-    last_mileage = _get_last_known_mileage(db, vehicle_id)
+    last_mileage = get_last_known_mileage(db, vehicle_id)
 
     warranties = db.query(Warranty).filter(Warranty.vehicle_id == vehicle_id).all()
     for w in warranties:

@@ -23,5 +23,5 @@ class Warranty(Base):
     end_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
-    item = relationship("MaintenanceItem", backref="warranties")
-    vehicle = relationship("Vehicle", backref="warranties")
+    item = relationship("MaintenanceItem", back_populates="warranties")
+    vehicle = relationship("Vehicle", back_populates="warranties")
