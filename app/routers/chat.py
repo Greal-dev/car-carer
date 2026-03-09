@@ -1,5 +1,4 @@
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -7,7 +6,6 @@ from app.models import Conversation, Message, Vehicle
 from app.models.user import User
 from app.schemas.chat import ChatRequest, ChatResponse, ConversationOut, MessageOut
 from app.services.agent import chat
-from app.services.alert_chat import alert_chat
 from app.routers.auth import get_current_user
 
 router = APIRouter(prefix="/api/chat", tags=["chat"])
@@ -116,23 +114,3 @@ def delete_conversation(conversation_id: int, user: User = Depends(get_current_u
     db.commit()
 
 
-class AlertChatRequest(BaseModel):
-    vehicle_id: int
-    alert: dict
-    messages: list[dict]  # [{"role": "user"/"assistant", "content": "..."}]
-
-
-class AlertChatResponse(BaseModel):
-    message: str
-
-
-@router.post("/alert", response_model=AlertChatResponse)
-def chat_about_alert(req: AlertChatRequest, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    """Chat with GPT-4o-mini about a specific alert/defect."""
-    response = alert_chat(
-        vehicle_id=req.vehicle_id,
-        alert=req.alert,
-        messages=req.messages,
-        db=db,
-    )
-    return AlertChatResponse(message=response)

@@ -18,10 +18,9 @@ from sqlalchemy.pool import StaticPool
 from app.database import Base, get_db
 # Import all models so Base.metadata knows about them
 from app.models import (  # noqa: F401
-    User, Vehicle, ShareLink, Document,
+    User, Vehicle, Document,
     MaintenanceEvent, MaintenanceItem,
     CTReport, CTDefect, Conversation, Message,
-    FuelEntry, Warranty,
 )
 from app.main import app
 from fastapi.testclient import TestClient

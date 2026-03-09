@@ -35,6 +35,29 @@
 .dark ::-webkit-scrollbar-thumb { background: #475569; }
 .dark .chat-md code { background: rgba(255,255,255,0.1); }
 .dark .chat-md pre { background: rgba(255,255,255,0.05); }
-.dark .bg-green-50, .dark .bg-red-50, .dark .bg-yellow-50, .dark .bg-orange-50, .dark .bg-blue-50 {
+.dark .bg-green-50, .dark .bg-red-50, .dark .bg-yellow-50, .dark .bg-orange-50, .dark .bg-blue-50, .dark .bg-amber-50 {
     background-color: rgba(255,255,255,0.05) !important;
 }
+/* Dark mode hover states */
+.dark .hover\:bg-gray-50:hover { background-color: #334155 !important; }
+.dark .hover\:shadow-md:hover { box-shadow: 0 4px 6px rgba(0,0,0,0.4) !important; }
+.dark .group:hover .group-hover\:opacity-100 { opacity: 1; }
+/* Dark mode focus rings */
+.dark .focus\:ring-brand-500:focus { --tw-ring-color: #0ea5e9; }
+.dark input:focus, .dark select:focus, .dark textarea:focus { border-color: #0ea5e9 !important; outline: none; box-shadow: 0 0 0 2px rgba(14,165,233,0.3) !important; }
+/* Dark mode badges */
+.dark .bg-green-100 { background-color: rgba(34,197,94,0.15) !important; }
+.dark .bg-red-100 { background-color: rgba(239,68,68,0.15) !important; }
+.dark .bg-orange-100 { background-color: rgba(249,115,22,0.15) !important; }
+.dark .bg-yellow-100 { background-color: rgba(234,179,8,0.15) !important; }
+.dark .bg-blue-100 { background-color: rgba(59,130,246,0.15) !important; }
+.dark .bg-brand-100 { background-color: rgba(14,165,233,0.15) !important; }
+/* Dark mode borders for colored badges */
+.dark .border-green-200, .dark .border-red-200, .dark .border-orange-200, .dark .border-yellow-200, .dark .border-blue-200, .dark .border-amber-200, .dark .border-amber-300 {
+    border-color: rgba(255,255,255,0.1) !important;
+}
+/* Dark mode tabs */
+.dark .border-b { border-color: #334155 !important; }
+.dark .border-t { border-color: #334155 !important; }
+/* Dark mode modal */
+.dark .bg-black\/50 { background-color: rgba(0,0,0,0.7) !important; }

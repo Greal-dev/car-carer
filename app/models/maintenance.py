@@ -41,4 +41,3 @@ class MaintenanceItem(Base):
     total_price: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
 
     event = relationship("MaintenanceEvent", back_populates="items")
-    warranties = relationship("Warranty", back_populates="item")

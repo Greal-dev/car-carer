@@ -105,12 +105,12 @@
                         </nav>
                         <div class="h-6 w-px bg-brand-500/50"></div>
                         <div class="flex items-center gap-2">
-                            <button @click="toggleDarkMode()" class="text-brand-200 hover:text-white transition" :title="darkMode ? 'Mode clair' : 'Mode sombre'">
+                            <button @click="toggleDarkMode()" class="text-brand-200 hover:text-white transition" :title="darkMode ? 'Mode clair' : 'Mode sombre'" :aria-label="darkMode ? 'Mode clair' : 'Mode sombre'">
                                 <svg x-show="!darkMode" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
                                 <svg x-show="darkMode" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
                             </button>
                             <span class="text-sm text-brand-200 hidden sm:inline" x-text="currentUser?.email"></span>
-                            <button @click="doLogout()" class="text-brand-200 hover:text-white transition" title="Deconnexion">
+                            <button @click="doLogout()" class="text-brand-200 hover:text-white transition" title="Deconnexion" aria-label="Deconnexion">
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
                             </button>
                         </div>
@@ -244,24 +244,10 @@
                                         <label class="block text-sm font-medium text-gray-700 mb-1">Nom du vehicule *</label>
                                         <input x-model="newVehicle.name" type="text" required placeholder="Ex: Berlingo familial, Clio de Julie..." class="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-brand-500 focus:border-brand-500">
                                     </div>
-                                    <!-- VIN Decoder -->
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-1">VIN (optionnel)</label>
-                                        <div class="flex gap-2">
-                                            <input x-model="vinInput" type="text" maxlength="17" placeholder="17 caracteres..." class="flex-1 border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand-500 uppercase">
-                                            <button type="button" @click="decodeVin()" :disabled="vinInput.length !== 17" class="bg-brand-100 text-brand-700 px-3 py-2 rounded-lg text-sm font-medium hover:bg-brand-200 disabled:opacity-40">Decoder</button>
-                                        </div>
-                                        <div x-show="vinResult && vinResult.valid" class="mt-1 text-xs text-green-600">
-                                            <span x-show="vinResult?.brand" x-text="vinResult?.brand"></span>
-                                            <span x-show="vinResult?.year" x-text="' — ' + vinResult?.year"></span>
-                                            <span x-show="vinResult?.country" x-text="' (' + vinResult?.country + ')'"></span>
-                                        </div>
-                                        <div x-show="vinResult && !vinResult.valid" class="mt-1 text-xs text-red-500" x-text="vinResult?.error"></div>
-                                    </div>
-                                    <p class="text-xs text-gray-400">Scannez le VIN pour pre-remplir marque et annee, ou uploadez vos documents apres creation.</p>
+                                    <p class="text-xs text-gray-400">Uploadez vos documents apres creation pour remplir automatiquement les infos.</p>
                                 </div>
                                 <div class="flex gap-3 mt-6">
-                                    <button type="button" @click="showAddVehicle = false; vinResult = null; vinInput = ''" class="flex-1 py-2 border rounded-lg hover:bg-gray-50">Annuler</button>
+                                    <button type="button" @click="showAddVehicle = false" class="flex-1 py-2 border rounded-lg hover:bg-gray-50">Annuler</button>
                                     <button type="submit" class="flex-1 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700">Creer</button>
                                 </div>
                             </form>
@@ -348,29 +334,16 @@
                                     </div>
                                 </div>
                                 <div class="flex items-center gap-2">
-                                    <button @click="createShareLink()" class="text-gray-400 hover:text-brand-600 transition" title="Partager">
-                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/></svg>
-                                    </button>
-                                    <button @click="exportPDF()" class="text-gray-400 hover:text-brand-600 transition" title="Exporter PDF">
+                                    <button @click="exportPDF()" class="text-gray-400 hover:text-brand-600 transition" title="Exporter PDF" aria-label="Exporter PDF">
                                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
                                     </button>
-                                    <button @click="openEditVehicle()" class="text-gray-400 hover:text-brand-600 transition" title="Modifier">
+                                    <button @click="openEditVehicle()" class="text-gray-400 hover:text-brand-600 transition" title="Modifier" aria-label="Modifier le vehicule">
                                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
                                     </button>
                                     <button @click="selectedVehicle = null" class="text-gray-400 hover:text-gray-600">
                                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                                     </button>
                                 </div>
-                            </div>
-
-                            <!-- Share link banner -->
-                            <div x-show="shareToken" class="bg-green-50 border border-green-200 rounded-lg p-3 mb-4 flex items-center gap-3" x-cloak>
-                                <svg class="w-5 h-5 text-green-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
-                                <input type="text" readonly :value="getShareUrl(shareToken)" class="flex-1 bg-white border rounded px-2 py-1 text-sm text-gray-600" @click="$el.select()">
-                                <button @click="copyShareUrl(shareToken)" class="text-sm bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700 transition">Copier</button>
-                                <button @click="shareToken = null" class="text-gray-400 hover:text-gray-600">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                                </button>
                             </div>
 
                             <!-- Upload -->
@@ -400,9 +373,6 @@
                                     </label>
                                     <label class="text-sm text-gray-500">
                                         <input type="radio" x-model="uploadDocType" value="ct_report" class="mr-1"> CT
-                                    </label>
-                                    <label class="text-sm text-gray-500">
-                                        <input type="radio" x-model="uploadDocType" value="quote" class="mr-1"> Devis
                                     </label>
                                 </div>
                                 <!-- Single file upload spinner -->
@@ -468,21 +438,11 @@
                                 </button>
                                 <button @click="detailTab = 'maintenance'" :class="detailTab === 'maintenance' ? 'border-brand-500 text-brand-600' : 'border-transparent text-gray-500'" class="px-4 py-2 border-b-2 font-medium transition whitespace-nowrap">Entretiens</button>
                                 <button @click="detailTab = 'ct'" :class="detailTab === 'ct' ? 'border-brand-500 text-brand-600' : 'border-transparent text-gray-500'" class="px-4 py-2 border-b-2 font-medium transition whitespace-nowrap">CT</button>
-                                <button @click="detailTab = 'stats'; renderCharts()" :class="detailTab === 'stats' ? 'border-brand-500 text-brand-600' : 'border-transparent text-gray-500'" class="px-4 py-2 border-b-2 font-medium transition whitespace-nowrap flex items-center gap-1">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
-                                    Stats
-                                </button>
-                                <button @click="detailTab = 'calendar'; loadCalendar()" :class="detailTab === 'calendar' ? 'border-brand-500 text-brand-600' : 'border-transparent text-gray-500'" class="px-4 py-2 border-b-2 font-medium transition whitespace-nowrap flex items-center gap-1">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-                                    Calendrier
-                                </button>
-                                <button @click="detailTab = 'reminders'; loadReminders(); loadWarranties()" :class="detailTab === 'reminders' ? 'border-brand-500 text-brand-600' : 'border-transparent text-gray-500'" class="px-4 py-2 border-b-2 font-medium transition whitespace-nowrap relative">
+                                <button @click="detailTab = 'reminders'; loadReminders()" :class="detailTab === 'reminders' ? 'border-brand-500 text-brand-600' : 'border-transparent text-gray-500'" class="px-4 py-2 border-b-2 font-medium transition whitespace-nowrap relative">
                                     Rappels
                                     <span x-show="reminderBadge > 0" class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center" x-text="reminderBadge"></span>
                                 </button>
-                                <button @click="detailTab = 'fuel'; loadFuel()" :class="detailTab === 'fuel' ? 'border-brand-500 text-brand-600' : 'border-transparent text-gray-500'" class="px-4 py-2 border-b-2 font-medium transition whitespace-nowrap">Carburant</button>
-                                <button @click="detailTab = 'budget'; loadBudgetForecast(); loadPriceHistory()" :class="detailTab === 'budget' ? 'border-brand-500 text-brand-600' : 'border-transparent text-gray-500'" class="px-4 py-2 border-b-2 font-medium transition whitespace-nowrap">Budget</button>
-                                <button @click="detailTab = 'quotes'; loadQuoteComparison()" :class="detailTab === 'quotes' ? 'border-brand-500 text-brand-600' : 'border-transparent text-gray-500'" class="px-4 py-2 border-b-2 font-medium transition whitespace-nowrap">Devis</button>
+                                <button @click="detailTab = 'budget'; loadStats(); $nextTick(() => renderCharts())" :class="detailTab === 'budget' ? 'border-brand-500 text-brand-600' : 'border-transparent text-gray-500'" class="px-4 py-2 border-b-2 font-medium transition whitespace-nowrap">Budget</button>
                                 <button @click="detailTab = 'docs'" :class="detailTab === 'docs' ? 'border-brand-500 text-brand-600' : 'border-transparent text-gray-500'" class="px-4 py-2 border-b-2 font-medium transition whitespace-nowrap">Documents</button>
                             </div>
 
@@ -555,7 +515,6 @@
                                                                 <p class="font-medium text-red-800 text-sm" x-text="a.title"></p>
                                                                 <p class="text-xs text-red-700 mt-1 whitespace-pre-line" x-text="a.detail"></p>
                                                             </div>
-                                                            <button @click="openAlertChat(a)" class="text-xs px-3 py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition whitespace-nowrap flex-shrink-0">Comprendre</button>
                                                         </div>
                                                     </div>
                                                 </template>
@@ -578,7 +537,6 @@
                                                                 <p class="font-medium text-orange-800 text-sm" x-text="a.title"></p>
                                                                 <p class="text-xs text-orange-700 mt-1 whitespace-pre-line" x-text="a.detail"></p>
                                                             </div>
-                                                            <button @click="openAlertChat(a)" class="text-xs px-3 py-1.5 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition whitespace-nowrap flex-shrink-0">Comprendre</button>
                                                         </div>
                                                     </div>
                                                 </template>
@@ -600,11 +558,10 @@
                                                         <p class="font-medium text-sm" x-text="a.maintenance_type || a.title"></p>
                                                         <p class="text-xs text-gray-600 mt-0.5" x-text="a.last_date ? 'Dernier : ' + a.last_date + (a.last_km ? ' (' + a.last_km.toLocaleString() + ' km)' : '') : 'Aucun historique'"></p>
                                                     </div>
-                                                    <div class="text-right flex items-center gap-2">
+                                                    <div class="text-right">
                                                         <span class="text-xs px-2 py-1 rounded-full font-bold"
                                                               :class="a.level === 'warning' ? 'bg-orange-100 text-orange-700' : a.level === 'ok' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'"
                                                               x-text="a.level === 'warning' ? 'EN RETARD' : a.level === 'ok' ? 'A JOUR' : 'INCONNU'"></span>
-                                                        <button x-show="a.level !== 'ok'" @click="openAlertChat(a)" class="text-xs px-2 py-1 bg-gray-600 text-white rounded hover:bg-gray-700 transition" title="Discuter avec l'IA">?</button>
                                                     </div>
                                                 </div>
                                             </template>
@@ -635,46 +592,6 @@
                                         <p class="text-sm text-gray-500">Votre vehicule est en bonne sante</p>
                                     </div>
 
-                                    <!-- Alert Chat Panel -->
-                                    <div x-show="alertChat" class="mt-6 border-2 border-brand-300 rounded-xl overflow-hidden" x-cloak>
-                                        <div class="bg-brand-700 text-white px-4 py-3 flex items-center justify-between">
-                                            <div class="flex items-center gap-2">
-                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/></svg>
-                                                <span class="font-medium text-sm truncate" x-text="alertChat?.title"></span>
-                                            </div>
-                                            <button @click="closeAlertChat()" class="text-white/70 hover:text-white">
-                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                                            </button>
-                                        </div>
-                                        <div x-ref="alertChatMessages" class="h-80 overflow-y-auto p-4 space-y-3 bg-gray-50">
-                                            <template x-for="(msg, i) in alertMessages" :key="i">
-                                                <div :class="msg.role === 'user' ? 'flex justify-end' : 'flex justify-start'">
-                                                    <div :class="msg.role === 'user' ? 'bg-brand-600 text-white' : 'bg-white text-gray-800 border'" class="max-w-[85%] rounded-2xl px-4 py-3 shadow-sm">
-                                                        <div class="text-sm whitespace-pre-wrap" x-html="msg.role === 'assistant' ? formatMarkdown(msg.content) : msg.content"></div>
-                                                    </div>
-                                                </div>
-                                            </template>
-                                            <div x-show="alertChatLoading" class="flex justify-start">
-                                                <div class="bg-white border rounded-2xl px-4 py-3 shadow-sm">
-                                                    <div class="flex gap-1">
-                                                        <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                                                        <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0.1s"></div>
-                                                        <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="border-t bg-white p-3">
-                                            <form @submit.prevent="sendAlertMessage()" class="flex gap-2">
-                                                <input x-model="alertChatInput" type="text" placeholder="Posez une question sur cette alerte..."
-                                                       class="flex-1 border rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
-                                                       :disabled="alertChatLoading">
-                                                <button type="submit" :disabled="alertChatLoading || !alertChatInput.trim()" class="bg-brand-600 text-white px-4 rounded-xl hover:bg-brand-700 transition disabled:opacity-50 text-sm">
-                                                    Envoyer
-                                                </button>
-                                            </form>
-                                        </div>
-                                    </div>
                                 </div>
                             </div>
 
@@ -775,48 +692,11 @@
                                 </div>
                             </div>
 
-                            <!-- Stats tab -->
-                            <div x-show="detailTab === 'stats'">
-                                <div x-show="statsLoading" class="text-center py-10">
-                                    <div class="animate-spin w-8 h-8 border-2 border-brand-500 border-t-transparent rounded-full mx-auto"></div>
-                                </div>
-                                <div x-show="!statsLoading && stats">
-                                    <div class="grid md:grid-cols-2 gap-6 mb-6">
-                                        <!-- Spending chart -->
-                                        <div class="border rounded-lg p-4">
-                                            <h4 class="font-bold text-sm text-gray-700 mb-3">Depenses par mois (EUR)</h4>
-                                            <div x-show="stats?.spending_by_month?.length > 0">
-                                                <canvas x-ref="spendingChart" height="200"></canvas>
-                                            </div>
-                                            <p x-show="!stats?.spending_by_month?.length" class="text-sm text-gray-400 text-center py-8">Aucune donnee</p>
-                                        </div>
-                                        <!-- Mileage chart -->
-                                        <div class="border rounded-lg p-4">
-                                            <h4 class="font-bold text-sm text-gray-700 mb-3">Evolution du kilometrage</h4>
-                                            <div x-show="stats?.mileage_timeline?.length > 0">
-                                                <canvas x-ref="mileageChart" height="200"></canvas>
-                                            </div>
-                                            <p x-show="!stats?.mileage_timeline?.length" class="text-sm text-gray-400 text-center py-8">Aucune donnee</p>
-                                        </div>
-                                    </div>
-                                    <!-- Category chart -->
-                                    <div class="border rounded-lg p-4 max-w-md mx-auto">
-                                        <h4 class="font-bold text-sm text-gray-700 mb-3">Repartition des depenses par categorie</h4>
-                                        <div x-show="stats?.spending_by_category?.length > 0">
-                                            <canvas x-ref="categoryChart" height="250"></canvas>
-                                        </div>
-                                        <p x-show="!stats?.spending_by_category?.length" class="text-sm text-gray-400 text-center py-8">Aucune donnee</p>
-                                    </div>
-                                </div>
-                                <div x-show="!statsLoading && !stats" class="text-center py-10 text-gray-400">
-                                    Aucune statistique disponible. Importez des documents pour commencer.
-                                </div>
-                            </div>
 
                             <!-- Reminders tab -->
                             <div x-show="detailTab === 'reminders'">
                                 <div class="flex items-center justify-between mb-4">
-                                    <h3 class="text-lg font-bold text-gray-800">Rappels & Garanties</h3>
+                                    <h3 class="text-lg font-bold text-gray-800">Rappels</h3>
                                 </div>
 
                                 <!-- Reminder counts -->
@@ -841,333 +721,39 @@
                                     <div x-show="reminders && reminders.reminders.length === 0" class="text-center py-8 text-gray-400">Aucun rappel actif — tout est a jour !</div>
                                 </div>
 
-                                <!-- Warranties section -->
-                                <div class="border-t pt-6">
-                                    <div class="flex items-center justify-between mb-4">
-                                        <h4 class="font-bold text-gray-700">Garanties pieces</h4>
-                                        <button @click="showWarrantyForm = !showWarrantyForm" class="bg-brand-600 text-white px-3 py-1.5 rounded-lg hover:bg-brand-700 text-sm">+ Garantie</button>
-                                    </div>
-
-                                    <!-- Add warranty form -->
-                                    <div x-show="showWarrantyForm" class="bg-gray-50 border rounded-lg p-4 mb-4">
-                                        <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
-                                            <div>
-                                                <label class="block text-xs text-gray-500 mb-1">ID de l'item *</label>
-                                                <input x-model="newWarranty.item_id" type="number" placeholder="ID item" class="w-full border rounded-lg px-3 py-2 text-sm">
-                                            </div>
-                                            <div>
-                                                <label class="block text-xs text-gray-500 mb-1">Description *</label>
-                                                <input x-model="newWarranty.description" type="text" placeholder="Garantie plaquettes..." class="w-full border rounded-lg px-3 py-2 text-sm">
-                                            </div>
-                                            <div>
-                                                <label class="block text-xs text-gray-500 mb-1">Date debut *</label>
-                                                <input x-model="newWarranty.start_date" type="date" class="w-full border rounded-lg px-3 py-2 text-sm">
-                                            </div>
-                                            <div>
-                                                <label class="block text-xs text-gray-500 mb-1">Duree (mois)</label>
-                                                <input x-model="newWarranty.duration_months" type="number" placeholder="24" class="w-full border rounded-lg px-3 py-2 text-sm">
-                                            </div>
-                                            <div>
-                                                <label class="block text-xs text-gray-500 mb-1">Km max</label>
-                                                <input x-model="newWarranty.max_km" type="number" placeholder="50000" class="w-full border rounded-lg px-3 py-2 text-sm">
-                                            </div>
-                                            <div class="flex items-end">
-                                                <button @click="addWarranty()" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 text-sm w-full">Ajouter</button>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <!-- Warranties list -->
-                                    <div class="space-y-2">
-                                        <template x-for="w in warranties" :key="w.id">
-                                            <div class="bg-white border rounded-lg p-3 flex items-center justify-between group hover:shadow-sm">
-                                                <div>
-                                                    <p class="font-medium text-sm" x-text="w.description"></p>
-                                                    <p class="text-xs text-gray-500">
-                                                        <span x-text="'Du ' + w.start_date"></span>
-                                                        <template x-if="w.end_date"><span x-text="' au ' + w.end_date"></span></template>
-                                                        <template x-if="w.max_km"><span x-text="' ou ' + w.max_km.toLocaleString() + ' km'"></span></template>
-                                                    </p>
-                                                </div>
-                                                <button @click="deleteWarranty(w.id)" class="text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition">
-                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                                                </button>
-                                            </div>
-                                        </template>
-                                        <div x-show="warranties.length === 0" class="text-center py-6 text-gray-400 text-sm">Aucune garantie enregistree</div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Fuel tab -->
-                            <div x-show="detailTab === 'fuel'">
-                                <div class="flex items-center justify-between mb-4">
-                                    <h3 class="text-lg font-bold text-gray-800">Suivi carburant</h3>
-                                    <button @click="showFuelForm = !showFuelForm" class="bg-brand-600 text-white px-4 py-2 rounded-lg hover:bg-brand-700 text-sm font-medium">+ Plein</button>
-                                </div>
-
-                                <!-- Warning -->
-                                <div x-show="fuelWarning" class="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
-                                    <p class="text-yellow-800 text-sm font-medium" x-text="fuelWarning?.message"></p>
-                                </div>
-
-                                <!-- Add fuel form -->
-                                <div x-show="showFuelForm" class="bg-white border rounded-xl p-5 mb-6 shadow-sm">
-                                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-                                        <div>
-                                            <label class="block text-xs text-gray-500 mb-1">Date *</label>
-                                            <input x-model="newFuel.date" type="date" class="w-full border rounded-lg px-3 py-2 text-sm">
-                                        </div>
-                                        <div>
-                                            <label class="block text-xs text-gray-500 mb-1">Kilometrage *</label>
-                                            <input x-model="newFuel.mileage" type="number" placeholder="km" class="w-full border rounded-lg px-3 py-2 text-sm">
-                                        </div>
-                                        <div>
-                                            <label class="block text-xs text-gray-500 mb-1">Litres *</label>
-                                            <input x-model="newFuel.liters" type="number" step="0.01" placeholder="L" class="w-full border rounded-lg px-3 py-2 text-sm">
-                                        </div>
-                                        <div>
-                                            <label class="block text-xs text-gray-500 mb-1">Prix/litre</label>
-                                            <input x-model="newFuel.price_per_liter" type="number" step="0.001" placeholder="EUR/L" class="w-full border rounded-lg px-3 py-2 text-sm">
-                                        </div>
-                                        <div>
-                                            <label class="block text-xs text-gray-500 mb-1">Station</label>
-                                            <input x-model="newFuel.station" type="text" placeholder="TotalEnergies..." class="w-full border rounded-lg px-3 py-2 text-sm">
-                                        </div>
-                                        <div>
-                                            <label class="block text-xs text-gray-500 mb-1">Type carburant</label>
-                                            <select x-model="newFuel.fuel_type" class="w-full border rounded-lg px-3 py-2 text-sm">
-                                                <option value="">--</option>
-                                                <option>SP95</option><option>SP98</option><option>E10</option><option>E85</option><option>Diesel</option><option>GPL</option>
-                                            </select>
-                                        </div>
-                                        <div class="flex items-end">
-                                            <label class="flex items-center gap-2 text-sm">
-                                                <input x-model="newFuel.full_tank" type="checkbox" class="rounded">
-                                                Plein complet
-                                            </label>
-                                        </div>
-                                        <div class="flex items-end">
-                                            <button @click="addFuelEntry()" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 text-sm w-full">Enregistrer</button>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- Stats cards -->
-                                <div x-show="fuelStats" class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-                                    <div class="bg-white border rounded-xl p-4 text-center">
-                                        <p class="text-xs text-gray-500 mb-1">Consommation moy.</p>
-                                        <p class="text-2xl font-bold text-brand-600" x-text="fuelStats?.avg_consumption ? fuelStats.avg_consumption + ' L/100' : '--'"></p>
-                                    </div>
-                                    <div class="bg-white border rounded-xl p-4 text-center">
-                                        <p class="text-xs text-gray-500 mb-1">Cout / km</p>
-                                        <p class="text-2xl font-bold text-green-600" x-text="fuelStats?.avg_cost_per_km ? fuelStats.avg_cost_per_km + ' EUR' : '--'"></p>
-                                    </div>
-                                    <div class="bg-white border rounded-xl p-4 text-center">
-                                        <p class="text-xs text-gray-500 mb-1">Total litres</p>
-                                        <p class="text-2xl font-bold text-gray-700" x-text="(fuelStats?.total_liters || 0) + ' L'"></p>
-                                    </div>
-                                    <div class="bg-white border rounded-xl p-4 text-center">
-                                        <p class="text-xs text-gray-500 mb-1">Total depense carburant</p>
-                                        <p class="text-2xl font-bold text-orange-600" x-text="(fuelStats?.total_fuel_cost || 0).toLocaleString() + ' EUR'"></p>
-                                    </div>
-                                </div>
-
-                                <!-- Fuel entries list -->
-                                <div class="space-y-2">
-                                    <template x-for="entry in fuelEntries" :key="entry.id">
-                                        <div class="bg-white border rounded-lg p-3 flex items-center justify-between group hover:shadow-sm">
-                                            <div class="flex items-center gap-4">
-                                                <div class="text-sm">
-                                                    <span class="font-medium" x-text="entry.date"></span>
-                                                    <span class="text-gray-400 mx-1">|</span>
-                                                    <span x-text="entry.mileage?.toLocaleString() + ' km'"></span>
-                                                </div>
-                                                <div class="text-sm text-gray-600">
-                                                    <span class="font-semibold" x-text="entry.liters + ' L'"></span>
-                                                    <template x-if="entry.price_per_liter">
-                                                        <span x-text="' @ ' + entry.price_per_liter + ' EUR/L'"></span>
-                                                    </template>
-                                                </div>
-                                                <template x-if="entry.station">
-                                                    <span class="text-xs text-gray-400" x-text="entry.station"></span>
-                                                </template>
-                                                <template x-if="!entry.full_tank">
-                                                    <span class="text-xs bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded">partiel</span>
-                                                </template>
-                                            </div>
-                                            <div class="flex items-center gap-3">
-                                                <span class="font-semibold text-sm" x-text="entry.total_cost ? entry.total_cost.toFixed(2) + ' EUR' : ''"></span>
-                                                <button @click="deleteFuelEntry(entry.id)" class="text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition" title="Supprimer">
-                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </template>
-                                    <div x-show="fuelEntries.length === 0 && !fuelLoading" class="text-center py-10 text-gray-400">Aucun plein enregistre</div>
-                                </div>
                             </div>
 
                             <!-- Budget tab -->
                             <div x-show="detailTab === 'budget'">
-                                <div x-show="!budgetForecast" class="text-center py-10 text-gray-400">Chargement...</div>
-                                <div x-show="budgetForecast">
-                                    <!-- Forecast summary -->
-                                    <div class="grid md:grid-cols-3 gap-4 mb-6">
-                                        <div class="bg-white border rounded-xl p-5 text-center">
-                                            <p class="text-sm text-gray-500 mb-1">Budget previsionnel annuel</p>
-                                            <p class="text-3xl font-bold text-brand-600" x-text="(budgetForecast?.forecast || 0).toLocaleString() + ' EUR'"></p>
-                                        </div>
-                                        <div class="bg-white border rounded-xl p-5 text-center">
-                                            <p class="text-sm text-gray-500 mb-1">Moyenne historique / an</p>
-                                            <p class="text-3xl font-bold text-gray-700" x-text="(budgetForecast?.historical_avg || 0).toLocaleString() + ' EUR'"></p>
-                                        </div>
-                                        <div class="bg-white border rounded-xl p-5 text-center">
-                                            <p class="text-sm text-gray-500 mb-1">Exporter</p>
-                                            <button @click="exportBooklet()" class="bg-brand-600 text-white px-4 py-2 rounded-lg hover:bg-brand-700 transition text-sm">
-                                                Carnet d'entretien PDF
-                                            </button>
-                                        </div>
-                                    </div>
-
-                                    <!-- Yearly history -->
-                                    <div x-show="budgetForecast?.yearly_history?.length > 0" class="mb-6">
-                                        <h4 class="font-bold text-gray-700 mb-3">Depenses par annee</h4>
-                                        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-                                            <template x-for="y in (budgetForecast?.yearly_history || [])" :key="y.year">
-                                                <div class="bg-white border rounded-lg p-3 text-center">
-                                                    <p class="text-lg font-bold text-gray-700" x-text="y.amount.toLocaleString() + ' EUR'"></p>
-                                                    <p class="text-xs text-gray-400" x-text="y.year"></p>
+                                <div x-show="!stats" class="text-center py-10 text-gray-400">Chargement...</div>
+                                <div x-show="stats">
+                                    <h4 class="font-bold text-gray-700 mb-3">Graphiques</h4>
+                                        <div class="grid md:grid-cols-2 gap-6 mb-6">
+                                            <div class="border rounded-lg p-4">
+                                                <h4 class="font-bold text-sm text-gray-700 mb-3">Depenses par mois (EUR)</h4>
+                                                <div x-show="stats?.spending_by_month?.length > 0">
+                                                    <canvas x-ref="spendingChart" height="200"></canvas>
                                                 </div>
-                                            </template>
-                                        </div>
-                                    </div>
-
-                                    <!-- Category breakdown -->
-                                    <div x-show="budgetForecast?.breakdown?.length > 0" class="mb-6">
-                                        <h4 class="font-bold text-gray-700 mb-3">Prevision par categorie</h4>
-                                        <div class="space-y-2">
-                                            <template x-for="b in (budgetForecast?.breakdown || []).slice(0, 10)" :key="b.category">
-                                                <div class="flex items-center gap-3">
-                                                    <span class="text-sm font-medium w-40 truncate" x-text="b.category"></span>
-                                                    <div class="flex-1 bg-gray-200 rounded-full h-4">
-                                                        <div class="bg-brand-500 h-4 rounded-full transition-all"
-                                                             :style="'width:' + Math.min(100, (b.yearly_avg / (budgetForecast?.forecast || 1)) * 100) + '%'"></div>
-                                                    </div>
-                                                    <span class="text-sm font-medium w-24 text-right" x-text="b.yearly_avg.toLocaleString() + ' EUR'"></span>
-                                                </div>
-                                            </template>
-                                        </div>
-                                    </div>
-
-                                    <!-- Price history -->
-                                    <div x-show="priceHistory && Object.keys(priceHistory?.categories || {}).length > 0">
-                                        <h4 class="font-bold text-gray-700 mb-3">Evolution des prix par categorie</h4>
-                                        <div class="space-y-3">
-                                            <template x-for="[cat, points] in Object.entries(priceHistory?.categories || {})" :key="cat">
-                                                <div class="border rounded-lg p-3">
-                                                    <p class="font-medium text-sm mb-2" x-text="cat"></p>
-                                                    <div class="flex flex-wrap gap-2">
-                                                        <template x-for="(p, i) in points" :key="i">
-                                                            <div class="text-xs bg-gray-50 rounded px-2 py-1">
-                                                                <span class="text-gray-500" x-text="p.date"></span>
-                                                                <span class="font-medium ml-1" x-text="p.price + ' EUR'"></span>
-                                                            </div>
-                                                        </template>
-                                                    </div>
-                                                </div>
-                                            </template>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Calendar tab -->
-                            <div x-show="detailTab === 'calendar'">
-                                <div x-show="calendarLoading" class="text-center py-10">
-                                    <div class="animate-spin w-8 h-8 border-2 border-brand-500 border-t-transparent rounded-full mx-auto"></div>
-                                </div>
-                                <div x-show="!calendarLoading">
-                                    <div class="flex items-center justify-between mb-4">
-                                        <h4 class="font-bold text-gray-700">Prochaines echeances</h4>
-                                        <button @click="enableNotifications()" x-show="!notificationsEnabled"
-                                                class="text-xs bg-brand-100 text-brand-700 px-3 py-1.5 rounded-lg hover:bg-brand-200 transition flex items-center gap-1">
-                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
-                                            Activer les notifications
-                                        </button>
-                                        <span x-show="notificationsEnabled" class="text-xs text-green-600 flex items-center gap-1">
-                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4"/></svg>
-                                            Notifications actives
-                                        </span>
-                                    </div>
-                                    <div x-show="calendar.length === 0" class="text-center py-10 text-gray-400">
-                                        Aucune echeance prevue. Ajoutez des documents pour generer le calendrier.
-                                    </div>
-                                    <div class="space-y-2">
-                                        <template x-for="(item, i) in calendar" :key="i">
-                                            <div class="border rounded-lg p-4 flex items-center gap-4"
-                                                 :class="item.priority === 'overdue' ? 'bg-red-50 border-red-200' : item.priority === 'high' ? 'bg-orange-50 border-orange-200' : 'bg-white'">
-                                                <div class="text-center min-w-[60px]">
-                                                    <p class="text-2xl font-bold" :class="item.priority === 'overdue' ? 'text-red-600' : item.priority === 'high' ? 'text-orange-600' : 'text-brand-600'"
-                                                       x-text="item.due_date ? new Date(item.due_date + 'T00:00').toLocaleDateString('fr-FR', {day: '2-digit'}) : '?'"></p>
-                                                    <p class="text-xs text-gray-500" x-text="item.due_date ? new Date(item.due_date + 'T00:00').toLocaleDateString('fr-FR', {month: 'short', year: 'numeric'}) : ''"></p>
-                                                </div>
-                                                <div class="flex-1">
-                                                    <p class="font-medium text-sm" x-text="item.type"></p>
-                                                    <p x-show="item.detail" class="text-xs text-gray-500 mt-0.5 truncate" x-text="item.detail"></p>
-                                                </div>
-                                                <span class="text-xs px-2 py-1 rounded-full font-bold"
-                                                      :class="item.priority === 'overdue' ? 'bg-red-100 text-red-700' : item.priority === 'high' ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700'"
-                                                      x-text="item.priority === 'overdue' ? 'EN RETARD' : item.priority === 'high' ? 'URGENT' : 'PREVU'"></span>
+                                                <p x-show="!stats?.spending_by_month?.length" class="text-sm text-gray-400 text-center py-8">Aucune donnee</p>
                                             </div>
-                                        </template>
-                                    </div>
+                                            <div class="border rounded-lg p-4">
+                                                <h4 class="font-bold text-sm text-gray-700 mb-3">Evolution du kilometrage</h4>
+                                                <div x-show="stats?.mileage_timeline?.length > 0">
+                                                    <canvas x-ref="mileageChart" height="200"></canvas>
+                                                </div>
+                                                <p x-show="!stats?.mileage_timeline?.length" class="text-sm text-gray-400 text-center py-8">Aucune donnee</p>
+                                            </div>
+                                        </div>
+                                        <div class="border rounded-lg p-4 max-w-md mx-auto">
+                                            <h4 class="font-bold text-sm text-gray-700 mb-3">Repartition par categorie</h4>
+                                            <div x-show="stats?.spending_by_category?.length > 0">
+                                                <canvas x-ref="categoryChart" height="250"></canvas>
+                                            </div>
+                                            <p x-show="!stats?.spending_by_category?.length" class="text-sm text-gray-400 text-center py-8">Aucune donnee</p>
+                                        </div>
                                 </div>
                             </div>
 
-                            <!-- Quotes comparison tab -->
-                            <div x-show="detailTab === 'quotes'">
-                                <div x-show="!quoteComparison || quoteComparison.quotes.length === 0" class="text-center py-10 text-gray-400">
-                                    Aucun devis. Importez des devis pour comparer les prix.
-                                </div>
-                                <div x-show="quoteComparison && quoteComparison.quotes.length > 0">
-                                    <h4 class="font-bold text-gray-700 mb-4">Comparaison des devis</h4>
-                                    <div class="overflow-x-auto">
-                                        <table class="w-full text-sm border-collapse">
-                                            <thead>
-                                                <tr class="bg-gray-50">
-                                                    <th class="text-left p-3 border-b font-medium text-gray-600">Categorie</th>
-                                                    <template x-for="(q, qi) in (quoteComparison?.quotes || [])" :key="qi">
-                                                        <th class="text-right p-3 border-b font-medium text-gray-600 min-w-[120px]">
-                                                            <div x-text="q.garage || ('Devis ' + (qi+1))"></div>
-                                                            <div class="text-xs text-gray-400 font-normal" x-text="q.date || ''"></div>
-                                                        </th>
-                                                    </template>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                <template x-for="cat in (quoteComparison?.categories || [])" :key="cat">
-                                                    <tr class="border-b hover:bg-gray-50">
-                                                        <td class="p-3 font-medium" x-text="cat"></td>
-                                                        <template x-for="(q, qi) in (quoteComparison?.quotes || [])" :key="qi">
-                                                            <td class="p-3 text-right" x-text="q.items_by_category[cat] ? q.items_by_category[cat].toFixed(2) + ' EUR' : '—'"></td>
-                                                        </template>
-                                                    </tr>
-                                                </template>
-                                            </tbody>
-                                            <tfoot>
-                                                <tr class="bg-gray-50 font-bold">
-                                                    <td class="p-3">TOTAL</td>
-                                                    <template x-for="(q, qi) in (quoteComparison?.quotes || [])" :key="qi">
-                                                        <td class="p-3 text-right" :class="quoteComparison.quotes.every(oq => q.total <= oq.total) ? 'text-green-600' : ''"
-                                                            x-text="q.total.toFixed(2) + ' EUR'"></td>
-                                                    </template>
-                                                </tr>
-                                            </tfoot>
-                                        </table>
-                                    </div>
-                                </div>
-                            </div>
 
                             <!-- Docs tab -->
                             <div x-show="detailTab === 'docs'">

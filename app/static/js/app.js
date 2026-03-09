@@ -39,50 +39,25 @@ function app() {
         analysisLoading: false,
         stats: null,
         statsLoading: false,
-        alertChat: null,
-        alertMessages: [],
-        alertChatInput: '',
-        alertChatLoading: false,
 
-        // Share state
-        shareLinks: [],
-        shareToken: null,
-
-        // Sprint 4: Filters, calendar, quotes
+        // Sprint 4: Filters
         maintenanceFilter: { q: '', event_type: '', date_from: '', date_to: '' },
         filteredMaintenance: null,
-        calendar: [],
-        calendarLoading: false,
-        quoteComparison: null,
-        notificationsEnabled: false,
 
         // Sprint 5: Dashboard, budget, price history
         dashboard: null,
         dashboardLoading: false,
-        budgetForecast: null,
-        priceHistory: null,
 
-        // Sprint 6: Fuel tracking
-        fuelEntries: [],
-        fuelStats: null,
-        fuelLoading: false,
-        newFuel: { date: '', mileage: '', liters: '', price_per_liter: '', station: '', fuel_type: '', full_tank: true },
-        fuelWarning: null,
-        showFuelForm: false,
+        // Sprint 6: Vehicle photo
         vehiclePhotoUrl: null,
 
         // Sprint 7: Reminders & Warranties
         reminders: null,
         remindersLoading: false,
-        warranties: [],
-        showWarrantyForm: false,
-        newWarranty: { item_id: '', description: '', duration_months: '', max_km: '', start_date: '' },
         reminderBadge: 0,
 
         // Sprint 8: Dark mode, VIN decoder
         darkMode: localStorage.getItem('darkMode') === 'true',
-        vinInput: '',
-        vinResult: null,
 
         // Chat state
         chatVehicleId: null,
@@ -227,7 +202,6 @@ function app() {
             this.batchResults = [];
             this.analysis = null;
             this.stats = null;
-            this.fuelWarning = null;
             this.loadVehiclePhoto();
             await Promise.all([
                 this.loadMaintenance(v.id),
@@ -468,36 +442,6 @@ function app() {
             });
         },
 
-        async createShareLink() {
-            if (!this.selectedVehicle) return;
-            const res = await fetch(`/api/vehicles/${this.selectedVehicle.id}/share`, { method: 'POST' });
-            if (res.ok) {
-                const data = await res.json();
-                this.shareToken = data.token;
-                await this.loadShareLinks();
-            }
-        },
-
-        async loadShareLinks() {
-            if (!this.selectedVehicle) return;
-            const res = await fetch(`/api/vehicles/${this.selectedVehicle.id}/shares`);
-            if (res.ok) this.shareLinks = await res.json();
-        },
-
-        async revokeShareLink(linkId) {
-            if (!confirm('Revoquer ce lien de partage ?')) return;
-            await fetch(`/api/vehicles/${this.selectedVehicle.id}/share/${linkId}`, { method: 'DELETE' });
-            this.shareLinks = this.shareLinks.filter(l => l.id !== linkId);
-        },
-
-        getShareUrl(token) {
-            return `${window.location.origin}/shared/${token}`;
-        },
-
-        copyShareUrl(token) {
-            navigator.clipboard.writeText(this.getShareUrl(token));
-        },
-
         async exportPDF() {
             if (!this.selectedVehicle) return;
             const res = await fetch(`/api/vehicles/${this.selectedVehicle.id}/export-pdf`);
@@ -520,75 +464,6 @@ function app() {
                 if (res.ok) this.dashboard = await res.json();
             } catch (e) { this.dashboard = null; }
             this.dashboardLoading = false;
-        },
-
-        async loadBudgetForecast() {
-            if (!this.selectedVehicle) return;
-            const res = await fetch(`/api/vehicles/${this.selectedVehicle.id}/budget-forecast`);
-            if (res.ok) this.budgetForecast = await res.json();
-        },
-
-        async loadPriceHistory() {
-            if (!this.selectedVehicle) return;
-            const res = await fetch(`/api/vehicles/${this.selectedVehicle.id}/price-history`);
-            if (res.ok) this.priceHistory = await res.json();
-        },
-
-        async exportBooklet() {
-            if (!this.selectedVehicle) return;
-            const res = await fetch(`/api/vehicles/${this.selectedVehicle.id}/export-booklet`);
-            if (res.ok) {
-                const blob = await res.blob();
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `carnet_${this.selectedVehicle.name.replace(/\s/g, '_')}.pdf`;
-                a.click();
-                URL.revokeObjectURL(url);
-            }
-        },
-
-        // --- Sprint 6: Fuel tracking ---
-        async loadFuel() {
-            if (!this.selectedVehicle) return;
-            this.fuelLoading = true;
-            try {
-                const [entriesRes, statsRes] = await Promise.all([
-                    fetch(`/api/vehicles/${this.selectedVehicle.id}/fuel`),
-                    fetch(`/api/vehicles/${this.selectedVehicle.id}/fuel-stats`),
-                ]);
-                if (entriesRes.ok) { const data = await entriesRes.json(); this.fuelEntries = data.items || data; }
-                if (statsRes.ok) this.fuelStats = await statsRes.json();
-            } finally { this.fuelLoading = false; }
-        },
-
-        async addFuelEntry() {
-            if (!this.selectedVehicle) return;
-            const data = {
-                date: this.newFuel.date,
-                mileage: parseInt(this.newFuel.mileage),
-                liters: parseFloat(this.newFuel.liters),
-                price_per_liter: this.newFuel.price_per_liter ? parseFloat(this.newFuel.price_per_liter) : null,
-                station: this.newFuel.station || null,
-                fuel_type: this.newFuel.fuel_type || null,
-                full_tank: this.newFuel.full_tank,
-            };
-            const res = await fetch(`/api/vehicles/${this.selectedVehicle.id}/fuel`, {
-                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data),
-            });
-            if (res.ok) {
-                const result = await res.json();
-                this.fuelWarning = result.mileage_warning;
-                this.newFuel = { date: '', mileage: '', liters: '', price_per_liter: '', station: '', fuel_type: '', full_tank: true };
-                this.showFuelForm = false;
-                await this.loadFuel();
-            }
-        },
-
-        async deleteFuelEntry(entryId) {
-            if (!confirm('Supprimer cette entree carburant ?')) return;
-            await fetch(`/api/vehicles/${this.selectedVehicle.id}/fuel/${entryId}`, { method: 'DELETE' });
-            await this.loadFuel();
         },
 
         async uploadVehiclePhoto(event) {
@@ -618,19 +493,7 @@ function app() {
             document.documentElement.classList.toggle('dark', this.darkMode);
         },
 
-        async decodeVin() {
-            if (!this.vinInput || this.vinInput.length !== 17) return;
-            const res = await fetch(`/api/vehicles/vin-decode?vin=${encodeURIComponent(this.vinInput)}`);
-            if (res.ok) {
-                this.vinResult = await res.json();
-                // Auto-fill vehicle create form if available
-                if (this.vinResult.brand) this.newVehicle.brand = this.vinResult.brand;
-                if (this.vinResult.year) this.newVehicle.year = this.vinResult.year;
-                this.newVehicle.vin = this.vinInput;
-            }
-        },
-
-        // --- Sprint 7: Reminders & Warranties ---
+        // --- Sprint 7: Reminders ---
         async loadReminders() {
             if (!this.selectedVehicle) return;
             this.remindersLoading = true;
@@ -641,37 +504,6 @@ function app() {
                     this.reminderBadge = this.reminders.counts.critical + this.reminders.counts.high;
                 }
             } finally { this.remindersLoading = false; }
-        },
-
-        async loadWarranties() {
-            if (!this.selectedVehicle) return;
-            const res = await fetch(`/api/vehicles/${this.selectedVehicle.id}/warranties`);
-            if (res.ok) this.warranties = await res.json();
-        },
-
-        async addWarranty() {
-            if (!this.selectedVehicle) return;
-            const data = {
-                item_id: parseInt(this.newWarranty.item_id),
-                description: this.newWarranty.description,
-                duration_months: this.newWarranty.duration_months ? parseInt(this.newWarranty.duration_months) : null,
-                max_km: this.newWarranty.max_km ? parseInt(this.newWarranty.max_km) : null,
-                start_date: this.newWarranty.start_date,
-            };
-            const res = await fetch(`/api/vehicles/${this.selectedVehicle.id}/warranties`, {
-                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data),
-            });
-            if (res.ok) {
-                this.newWarranty = { item_id: '', description: '', duration_months: '', max_km: '', start_date: '' };
-                this.showWarrantyForm = false;
-                await Promise.all([this.loadWarranties(), this.loadReminders()]);
-            }
-        },
-
-        async deleteWarranty(wId) {
-            if (!confirm('Supprimer cette garantie ?')) return;
-            await fetch(`/api/vehicles/${this.selectedVehicle.id}/warranties/${wId}`, { method: 'DELETE' });
-            await Promise.all([this.loadWarranties(), this.loadReminders()]);
         },
 
         reminderPriorityColor(p) {
@@ -720,75 +552,6 @@ function app() {
                 a.click();
                 URL.revokeObjectURL(url);
             }
-        },
-
-        // --- Calendar ---
-        async loadCalendar() {
-            if (!this.selectedVehicle) return;
-            this.calendarLoading = true;
-            try {
-                const res = await fetch(`/api/vehicles/${this.selectedVehicle.id}/calendar`);
-                if (res.ok) this.calendar = await res.json();
-            } catch (e) { this.calendar = []; }
-            this.calendarLoading = false;
-        },
-
-        // --- Quote comparison ---
-        async loadQuoteComparison() {
-            if (!this.selectedVehicle) return;
-            const res = await fetch(`/api/vehicles/${this.selectedVehicle.id}/compare-quotes`);
-            if (res.ok) this.quoteComparison = await res.json();
-        },
-
-        // --- Notifications ---
-        async enableNotifications() {
-            if (!('Notification' in window)) return;
-            const perm = await Notification.requestPermission();
-            this.notificationsEnabled = perm === 'granted';
-            if (this.notificationsEnabled) this.checkAndNotify();
-        },
-
-        checkAndNotify() {
-            if (!this.notificationsEnabled || !this.analysis) return;
-            const critical = this.analysis.alerts.filter(a => a.level === 'critical');
-            if (critical.length > 0) {
-                new Notification('Care of your Car', {
-                    body: `${critical.length} alerte(s) critique(s) sur ${this.selectedVehicle?.name || 'votre vehicule'}`,
-                    icon: '/static/icons/icon-192.png',
-                });
-            }
-        },
-
-        openAlertChat(alert) {
-            this.alertChat = alert;
-            this.alertMessages = [];
-            this.alertChatInput = '';
-            this.alertChatLoading = false;
-            this._sendAlertMessage("Explique-moi ce probleme, ses causes possibles, son impact, et ce que je dois faire.");
-        },
-
-        closeAlertChat() { this.alertChat = null; this.alertMessages = []; },
-
-        async sendAlertMessage() {
-            const text = this.alertChatInput.trim();
-            if (!text) return;
-            this.alertChatInput = '';
-            await this._sendAlertMessage(text);
-        },
-
-        async _sendAlertMessage(text) {
-            this.alertMessages.push({ role: 'user', content: text });
-            this.alertChatLoading = true;
-            this.$nextTick(() => { const el = this.$refs.alertChatMessages; if (el) el.scrollTop = el.scrollHeight; });
-            try {
-                const res = await fetch('/api/chat/alert', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ vehicle_id: this.selectedVehicle.id, alert: this.alertChat, messages: this.alertMessages }) });
-                const data = await res.json();
-                this.alertMessages.push({ role: 'assistant', content: data.message });
-            } catch (e) {
-                this.alertMessages.push({ role: 'assistant', content: 'Erreur: ' + e.message });
-            }
-            this.alertChatLoading = false;
-            this.$nextTick(() => { const el = this.$refs.alertChatMessages; if (el) el.scrollTop = el.scrollHeight; });
         },
 
         // --- Chat ---
