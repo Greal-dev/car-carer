@@ -31,7 +31,7 @@ class MaintenanceItem(Base):
     __tablename__ = "maintenance_items"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    event_id: Mapped[int] = mapped_column(ForeignKey("maintenance_events.id"))
+    event_id: Mapped[int] = mapped_column(ForeignKey("maintenance_events.id"), index=True)
     description: Mapped[str] = mapped_column(String(500))
     category: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     part_name: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)

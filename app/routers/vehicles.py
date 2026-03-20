@@ -9,6 +9,7 @@ from fastapi.responses import Response as RawResponse, FileResponse
 from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 
+from app.config import UPLOAD_PATH
 from app.database import get_db
 from app.models import Vehicle, MaintenanceEvent, MaintenanceItem, CTReport, CTDefect, Document
 from app.models.user import User
@@ -16,8 +17,11 @@ from app.schemas.vehicle import VehicleCreate, VehicleUpdate, VehicleOut, Vehicl
 from app.services.analysis import analyze_vehicle
 from app.routers.auth import get_current_user
 
-PHOTO_DIR = Path("./uploads/photos")
+PHOTO_DIR = UPLOAD_PATH / "photos"
 PHOTO_DIR.mkdir(parents=True, exist_ok=True)
+
+ALLOWED_PHOTO_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
+MAX_PHOTO_SIZE = 10 * 1024 * 1024  # 10 MB
 
 router = APIRouter(prefix="/api/vehicles", tags=["vehicles"])
 
@@ -84,51 +88,148 @@ def _get_vehicle_or_404(vehicle_id: int, user: User, db: Session) -> Vehicle:
 
 @router.get("", response_model=list[VehicleSummary])
 def list_vehicles(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    vehicles = (
-        db.query(Vehicle)
+    from sqlalchemy import select, and_
+
+    # Subquery: last maintenance date per vehicle
+    last_event_sq = (
+        db.query(
+            MaintenanceEvent.vehicle_id,
+            func.max(MaintenanceEvent.date).label("last_maintenance_date"),
+        )
+        .group_by(MaintenanceEvent.vehicle_id)
+        .subquery()
+    )
+
+    # Subquery: max date with non-null mileage from maintenance events (for join below)
+    max_mileage_date_sq = (
+        db.query(
+            MaintenanceEvent.vehicle_id,
+            func.max(MaintenanceEvent.date).label("max_date"),
+        )
+        .filter(MaintenanceEvent.mileage.isnot(None))
+        .group_by(MaintenanceEvent.vehicle_id)
+        .subquery()
+    )
+    # Subquery: get the actual mileage for that max date (SQLite-compatible, no DISTINCT ON)
+    last_mileage_event_sq = (
+        db.query(
+            MaintenanceEvent.vehicle_id,
+            MaintenanceEvent.mileage.label("last_event_mileage"),
+            MaintenanceEvent.date.label("last_event_mileage_date"),
+        )
+        .join(
+            max_mileage_date_sq,
+            and_(
+                MaintenanceEvent.vehicle_id == max_mileage_date_sq.c.vehicle_id,
+                MaintenanceEvent.date == max_mileage_date_sq.c.max_date,
+            ),
+        )
+        .filter(MaintenanceEvent.mileage.isnot(None))
+        .subquery()
+    )
+
+    # Subquery: max date with non-null mileage from CT reports
+    max_ct_mileage_date_sq = (
+        db.query(
+            CTReport.vehicle_id,
+            func.max(CTReport.date).label("max_date"),
+        )
+        .filter(CTReport.mileage.isnot(None))
+        .group_by(CTReport.vehicle_id)
+        .subquery()
+    )
+    last_mileage_ct_sq = (
+        db.query(
+            CTReport.vehicle_id,
+            CTReport.mileage.label("last_ct_mileage"),
+            CTReport.date.label("last_ct_mileage_date"),
+        )
+        .join(
+            max_ct_mileage_date_sq,
+            and_(
+                CTReport.vehicle_id == max_ct_mileage_date_sq.c.vehicle_id,
+                CTReport.date == max_ct_mileage_date_sq.c.max_date,
+            ),
+        )
+        .filter(CTReport.mileage.isnot(None))
+        .subquery()
+    )
+
+    # Subquery: total spent per vehicle (invoices only)
+    spent_sq = (
+        db.query(
+            MaintenanceEvent.vehicle_id,
+            func.sum(MaintenanceEvent.total_cost).label("total_spent"),
+        )
+        .filter(MaintenanceEvent.event_type == "invoice")
+        .group_by(MaintenanceEvent.vehicle_id)
+        .subquery()
+    )
+
+    # Subquery: document count per vehicle
+    doc_count_sq = (
+        db.query(
+            Document.vehicle_id,
+            func.count(Document.id).label("doc_count"),
+        )
+        .group_by(Document.vehicle_id)
+        .subquery()
+    )
+
+    # Subquery: CT count per vehicle
+    ct_count_sq = (
+        db.query(
+            CTReport.vehicle_id,
+            func.count(CTReport.id).label("ct_count"),
+        )
+        .group_by(CTReport.vehicle_id)
+        .subquery()
+    )
+
+    # Main query with all joins — 1 query instead of 4N+1
+    rows = (
+        db.query(
+            Vehicle,
+            last_event_sq.c.last_maintenance_date,
+            last_mileage_event_sq.c.last_event_mileage,
+            last_mileage_event_sq.c.last_event_mileage_date,
+            last_mileage_ct_sq.c.last_ct_mileage,
+            last_mileage_ct_sq.c.last_ct_mileage_date,
+            spent_sq.c.total_spent,
+            doc_count_sq.c.doc_count,
+            ct_count_sq.c.ct_count,
+        )
+        .outerjoin(last_event_sq, Vehicle.id == last_event_sq.c.vehicle_id)
+        .outerjoin(last_mileage_event_sq, Vehicle.id == last_mileage_event_sq.c.vehicle_id)
+        .outerjoin(last_mileage_ct_sq, Vehicle.id == last_mileage_ct_sq.c.vehicle_id)
+        .outerjoin(spent_sq, Vehicle.id == spent_sq.c.vehicle_id)
+        .outerjoin(doc_count_sq, Vehicle.id == doc_count_sq.c.vehicle_id)
+        .outerjoin(ct_count_sq, Vehicle.id == ct_count_sq.c.vehicle_id)
         .filter((Vehicle.user_id == user.id) | (Vehicle.user_id.is_(None)))
         .order_by(Vehicle.name)
         .all()
     )
+
     results = []
-    for v in vehicles:
+    for (v, last_maint_date, ev_mileage, ev_mileage_date,
+         ct_mileage, ct_mileage_date, total_spent, doc_count, ct_count) in rows:
+        # Determine last mileage: pick the one from the most recent source
         last_mileage = None
-        last_maintenance_date = None
-
-        last_event = (
-            db.query(MaintenanceEvent)
-            .filter(MaintenanceEvent.vehicle_id == v.id)
-            .order_by(MaintenanceEvent.date.desc())
-            .first()
-        )
-        if last_event:
-            last_maintenance_date = last_event.date
-            if last_event.mileage:
-                last_mileage = last_event.mileage
-
-        last_ct = (
-            db.query(CTReport)
-            .filter(CTReport.vehicle_id == v.id)
-            .order_by(CTReport.date.desc())
-            .first()
-        )
-        if last_ct and last_ct.mileage:
-            if last_mileage is None or (last_ct.date and last_event and last_ct.date > last_event.date):
-                last_mileage = last_ct.mileage
-
-        total_spent = db.query(func.sum(MaintenanceEvent.total_cost)).filter(
-            MaintenanceEvent.vehicle_id == v.id,
-            MaintenanceEvent.event_type == "invoice",
-        ).scalar() or 0
-
-        doc_count = db.query(func.count(Document.id)).filter(Document.vehicle_id == v.id).scalar()
-        ct_count = db.query(func.count(CTReport.id)).filter(CTReport.vehicle_id == v.id).scalar()
+        if ev_mileage is not None and ct_mileage is not None:
+            if ct_mileage_date and ev_mileage_date and ct_mileage_date > ev_mileage_date:
+                last_mileage = ct_mileage
+            else:
+                last_mileage = ev_mileage
+        elif ev_mileage is not None:
+            last_mileage = ev_mileage
+        elif ct_mileage is not None:
+            last_mileage = ct_mileage
 
         results.append(VehicleSummary(
             id=v.id, name=v.name, brand=v.brand, model=v.model, year=v.year,
             plate_number=v.plate_number, last_mileage=last_mileage,
-            last_maintenance_date=last_maintenance_date, total_spent=total_spent,
-            document_count=doc_count, ct_count=ct_count,
+            last_maintenance_date=last_maint_date, total_spent=total_spent or 0,
+            document_count=doc_count or 0, ct_count=ct_count or 0,
         ))
     return results
 
@@ -315,10 +416,11 @@ def search_maintenance(
     db: Session = Depends(get_db),
 ):
     """Search and filter maintenance events with pagination."""
+    from sqlalchemy import or_, exists, select
+
     _get_vehicle_or_404(vehicle_id, user, db)
     query = (
         db.query(MaintenanceEvent)
-        .options(joinedload(MaintenanceEvent.items))
         .filter(MaintenanceEvent.vehicle_id == vehicle_id)
     )
     if event_type:
@@ -327,26 +429,50 @@ def search_maintenance(
         query = query.filter(MaintenanceEvent.date >= date_from)
     if date_to:
         query = query.filter(MaintenanceEvent.date <= date_to)
-    events = query.order_by(MaintenanceEvent.date.desc()).all()
 
-    # Text search in items
+    # SQL-level text search using ilike
     if q.strip():
-        q_lower = q.lower()
-        filtered = []
-        for ev in events:
-            match = q_lower in (ev.garage_name or "").lower()
-            if not match:
-                for item in ev.items:
-                    if q_lower in (item.description or "").lower() or q_lower in (item.category or "").lower():
-                        match = True
-                        break
-            if match:
-                filtered.append(ev)
-        events = filtered
+        pattern = f"%{q.strip()}%"
+        item_match = (
+            select(MaintenanceItem.id)
+            .where(
+                MaintenanceItem.event_id == MaintenanceEvent.id,
+                or_(
+                    MaintenanceItem.description.ilike(pattern),
+                    MaintenanceItem.category.ilike(pattern),
+                ),
+            )
+            .correlate(MaintenanceEvent)
+            .exists()
+        )
+        query = query.filter(
+            or_(
+                MaintenanceEvent.garage_name.ilike(pattern),
+                item_match,
+            )
+        )
 
-    total = len(events)
-    start = (page - 1) * limit
-    paginated = events[start:start + limit]
+    # Get total count before pagination
+    total = query.count()
+
+    # Apply pagination at DB level
+    offset = (page - 1) * limit
+    events = (
+        query
+        .options(joinedload(MaintenanceEvent.items))
+        .order_by(MaintenanceEvent.date.desc())
+        .offset(offset)
+        .limit(limit)
+        .all()
+    )
+
+    # Deduplicate events that may appear multiple times due to joinedload
+    seen = set()
+    unique_events = []
+    for ev in events:
+        if ev.id not in seen:
+            seen.add(ev.id)
+            unique_events.append(ev)
 
     items = [
         {
@@ -355,7 +481,7 @@ def search_maintenance(
             "total_cost": float(ev.total_cost) if ev.total_cost else None,
             "items": [{"id": i.id, "description": i.description, "category": i.category, "total_price": float(i.total_price) if i.total_price else None} for i in ev.items],
         }
-        for ev in paginated
+        for ev in unique_events
     ]
     return {"items": items, "total": total, "page": page, "pages": (total + limit - 1) // limit if total else 0}
 
@@ -365,20 +491,42 @@ def search_maintenance(
 # --- Vehicle photo ---
 
 @router.post("/{vehicle_id}/photo")
-def upload_vehicle_photo(vehicle_id: int, file: UploadFile = File(...), user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def upload_vehicle_photo(vehicle_id: int, request: Request, file: UploadFile = File(...), user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """Upload a photo for the vehicle."""
     vehicle = _get_vehicle_or_404(vehicle_id, user, db)
-    if file.content_type not in ("image/jpeg", "image/png", "image/webp"):
-        raise HTTPException(400, "Format non supporte (JPEG, PNG ou WebP)")
 
-    # Read file into memory and check size (max 5 MB)
-    MAX_PHOTO_SIZE = 5 * 1024 * 1024  # 5 MB
-    contents = file.file.read()
-    if len(contents) > MAX_PHOTO_SIZE:
-        raise HTTPException(413, f"Photo trop volumineuse ({len(contents) // 1024 // 1024} MB). Maximum: 5 MB")
+    # 1. Validate file extension BEFORE reading any content
+    ext = ""
+    if file.filename and "." in file.filename:
+        ext = Path(file.filename).suffix.lower()
+    if ext not in ALLOWED_PHOTO_EXTS:
+        raise HTTPException(
+            400,
+            f"Extension non supportee ({ext or 'aucune'}). "
+            f"Extensions acceptees: {', '.join(sorted(ALLOWED_PHOTO_EXTS))}",
+        )
 
-    ext = file.filename.rsplit(".", 1)[-1] if "." in file.filename else "jpg"
-    filename = f"{vehicle_id}_{uuid.uuid4().hex[:8]}.{ext}"
+    # 2. Check Content-Length header if available (reject early)
+    content_length = request.headers.get("content-length")
+    if content_length and int(content_length) > MAX_PHOTO_SIZE:
+        raise HTTPException(413, f"Fichier trop volumineux. Maximum: {MAX_PHOTO_SIZE // (1024 * 1024)} MB")
+
+    # 3. Read in streaming with size limit (protects against missing/lying Content-Length)
+    chunks = []
+    total_read = 0
+    chunk_size = 64 * 1024  # 64 KB chunks
+    while True:
+        chunk = file.file.read(chunk_size)
+        if not chunk:
+            break
+        total_read += len(chunk)
+        if total_read > MAX_PHOTO_SIZE:
+            raise HTTPException(413, f"Photo trop volumineuse. Maximum: {MAX_PHOTO_SIZE // (1024 * 1024)} MB")
+        chunks.append(chunk)
+    contents = b"".join(chunks)
+
+    safe_ext = ext.lstrip(".")
+    filename = f"{vehicle_id}_{uuid.uuid4().hex[:8]}.{safe_ext}"
     filepath = PHOTO_DIR / filename
 
     with open(filepath, "wb") as f:

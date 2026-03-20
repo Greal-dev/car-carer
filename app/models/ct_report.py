@@ -31,7 +31,7 @@ class CTDefect(Base):
     __tablename__ = "ct_defects"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    ct_report_id: Mapped[int] = mapped_column(ForeignKey("ct_reports.id"))
+    ct_report_id: Mapped[int] = mapped_column(ForeignKey("ct_reports.id"), index=True)
     code: Mapped[Optional[str]] = mapped_column(String(30), nullable=True)
     description: Mapped[str] = mapped_column(String(500))
     severity: Mapped[str] = mapped_column(String(20))  # mineur, majeur, critique, a_surveiller
