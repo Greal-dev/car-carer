@@ -2,6 +2,8 @@
 
 import io
 import json
+import logging
+import time
 import base64
 from pathlib import Path
 
@@ -11,8 +13,15 @@ from PIL import Image, ImageEnhance, ImageFilter, ExifTags
 
 from app.config import settings
 
+logger = logging.getLogger(__name__)
+
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 MODEL = "google/gemini-2.5-flash"
+
+# Configurable timeout (seconds) and retry settings
+EXTRACTION_TIMEOUT = 60
+EXTRACTION_MAX_RETRIES = 2
+EXTRACTION_RETRY_DELAY = 2  # seconds between retries
 
 INVOICE_PROMPT = """Analyse cette facture ou ce devis d'entretien automobile.
 Extrais les informations suivantes au format JSON strict :
@@ -216,24 +225,42 @@ def _build_image_content(file_path: str) -> list[dict]:
 
 
 def _call_openrouter(image_parts: list[dict], prompt: str) -> str:
-    """Call OpenRouter with image + text prompt, return text response."""
+    """Call OpenRouter with image + text prompt, return text response.
+
+    Retries up to EXTRACTION_MAX_RETRIES times with EXTRACTION_RETRY_DELAY between attempts.
+    """
     content = image_parts + [{"type": "text", "text": prompt}]
 
-    resp = httpx.post(
-        OPENROUTER_URL,
-        headers={
-            "Authorization": f"Bearer {settings.openrouter_api_key}",
-            "Content-Type": "application/json",
-        },
-        json={
-            "model": MODEL,
-            "messages": [{"role": "user", "content": content}],
-            "max_tokens": 4096,
-        },
-        timeout=120,
-    )
-    resp.raise_for_status()
-    return resp.json()["choices"][0]["message"]["content"]
+    last_error = None
+    for attempt in range(1, EXTRACTION_MAX_RETRIES + 1):
+        try:
+            logger.info("OpenRouter API call attempt %d/%d (timeout=%ds)",
+                        attempt, EXTRACTION_MAX_RETRIES, EXTRACTION_TIMEOUT)
+            resp = httpx.post(
+                OPENROUTER_URL,
+                headers={
+                    "Authorization": f"Bearer {settings.openrouter_api_key}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": MODEL,
+                    "messages": [{"role": "user", "content": content}],
+                    "max_tokens": 4096,
+                },
+                timeout=EXTRACTION_TIMEOUT,
+            )
+            resp.raise_for_status()
+            logger.info("OpenRouter API call succeeded on attempt %d", attempt)
+            return resp.json()["choices"][0]["message"]["content"]
+        except (httpx.TimeoutException, httpx.HTTPStatusError) as e:
+            last_error = e
+            logger.warning("OpenRouter API call failed (attempt %d/%d): %s",
+                           attempt, EXTRACTION_MAX_RETRIES, e)
+            if attempt < EXTRACTION_MAX_RETRIES:
+                logger.info("Retrying in %d seconds...", EXTRACTION_RETRY_DELAY)
+                time.sleep(EXTRACTION_RETRY_DELAY)
+
+    raise last_error  # type: ignore[misc]
 
 
 def _parse_json_response(raw_text: str) -> dict | None:
@@ -246,7 +273,8 @@ def _parse_json_response(raw_text: str) -> dict | None:
     text = text.strip()
     try:
         return json.loads(text)
-    except json.JSONDecodeError:
+    except json.JSONDecodeError as e:
+        logger.warning("JSON parse failed: %s — raw text (first 500 chars): %s", e, raw_text[:500])
         return None
 
 
@@ -260,6 +288,7 @@ async def extract_document(file_path: str, doc_type_hint: str = "auto") -> dict:
     Returns:
         Extracted structured data as dict
     """
+    logger.info("Starting extraction — file=%s, hint=%s", file_path, doc_type_hint)
     image_parts = _build_image_content(file_path)
 
     # Choose prompt based on hint or try auto-detection
@@ -272,6 +301,7 @@ async def extract_document(file_path: str, doc_type_hint: str = "auto") -> dict:
             image_parts,
             "Ce document est-il un controle technique (CT) ou une facture/devis d'entretien ? Reponds UNIQUEMENT par 'ct' ou 'facture'.",
         ).strip().lower()
+        logger.info("Auto-detection result: %s", detected)
         if "ct" in detected:
             prompts_to_try = [CT_PROMPT, INVOICE_PROMPT]
         else:
@@ -283,6 +313,9 @@ async def extract_document(file_path: str, doc_type_hint: str = "auto") -> dict:
         last_raw = raw_text
         data = _parse_json_response(raw_text)
         if data is not None:
+            logger.info("Extraction succeeded — doc_type=%s", data.get("doc_type", data.get("result", "unknown")))
             return data
+        logger.warning("JSON parse failed for prompt type, trying next prompt if available")
 
+    logger.error("Extraction failed — all prompts exhausted, returning error with raw text")
     return {"error": "Failed to parse extraction result", "raw": last_raw.strip()}

@@ -1,12 +1,17 @@
 """Shared mileage service — single source of truth for last known mileage."""
 
+import logging
+
 from sqlalchemy.orm import Session
 
 from app.models import MaintenanceEvent, CTReport
 
+logger = logging.getLogger(__name__)
+
 
 def get_last_known_mileage(db: Session, vehicle_id: int) -> int | None:
     """Get the highest known mileage for a vehicle from all sources."""
+    logger.debug("Looking up last known mileage — vehicle_id=%d", vehicle_id)
     sources = []
 
     last_ev = db.query(MaintenanceEvent.mileage).filter(
@@ -21,4 +26,6 @@ def get_last_known_mileage(db: Session, vehicle_id: int) -> int | None:
     if last_ct:
         sources.append(last_ct[0])
 
-    return max(sources) if sources else None
+    result = max(sources) if sources else None
+    logger.debug("Last known mileage for vehicle_id=%d: %s", vehicle_id, result)
+    return result

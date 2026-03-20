@@ -1,5 +1,6 @@
 """Generate vehicle report PDF using FPDF-like approach with fitz (PyMuPDF)."""
 
+import logging
 from datetime import date
 
 import fitz  # PyMuPDF
@@ -7,18 +8,27 @@ from sqlalchemy.orm import Session
 
 from app.models import MaintenanceEvent, CTReport
 
+logger = logging.getLogger(__name__)
+
 
 def generate_vehicle_pdf(vehicle, analysis: dict, db: Session) -> bytes:
     """Generate a PDF report for a vehicle."""
+    logger.info("Generating vehicle PDF report — vehicle_id=%s", getattr(vehicle, 'id', '?'))
     doc = fitz.open()
     page = doc.new_page(width=595, height=842)  # A4
 
     y = 40
 
     # Title
-    y = _text(page, f"Rapport vehicule — {vehicle.name}", 40, y, size=18, bold=True, color=(0.01, 0.23, 0.40))
+    vehicle_name = vehicle.name or "N/R"
+    y = _text(page, f"Rapport vehicule — {vehicle_name}", 40, y, size=18, bold=True, color=(0.01, 0.23, 0.40))
     y += 5
-    info_parts = [vehicle.brand, vehicle.model, f"({vehicle.year})" if vehicle.year else None, vehicle.plate_number]
+    info_parts = [
+        vehicle.brand or "N/R",
+        vehicle.model or "",
+        f"({vehicle.year})" if vehicle.year else None,
+        vehicle.plate_number,
+    ]
     info = " ".join(p for p in info_parts if p)
     if info:
         y = _text(page, info, 40, y, size=10, color=(0.4, 0.4, 0.4))
@@ -36,9 +46,11 @@ def generate_vehicle_pdf(vehicle, analysis: dict, db: Session) -> bytes:
     ct_status = analysis.get("current_ct_status")
     if ct_status:
         y = _section(page, "Dernier controle technique", y)
-        y = _text(page, f"Date : {ct_status['date']}  —  Resultat : {(ct_status['result'] or '').upper()}", 50, y, size=10)
-        if ct_status.get("mileage"):
-            y = _text(page, f"Kilometrage : {ct_status['mileage']:,} km", 50, y, size=10)
+        ct_result = (ct_status.get('result') or 'N/R').upper()
+        y = _text(page, f"Date : {ct_status.get('date', 'N/R')}  —  Resultat : {ct_result}", 50, y, size=10)
+        ct_mileage = ct_status.get("mileage")
+        if ct_mileage is not None and isinstance(ct_mileage, (int, float)):
+            y = _text(page, f"Kilometrage : {ct_mileage:,} km", 50, y, size=10)
         y = _text(page, f"Defauts : {ct_status.get('defect_count', 0)}  —  Prochaine echeance : {ct_status.get('next_due', 'N/A')}", 50, y, size=10)
         y += 5
 
@@ -50,10 +62,11 @@ def generate_vehicle_pdf(vehicle, analysis: dict, db: Session) -> bytes:
             if y > 780:
                 page = doc.new_page(width=595, height=842)
                 y = 40
-            level = a.get("level", "").upper()
-            y = _text(page, f"[{level}] {a['title']}", 50, y, size=9, bold=True)
-            if a.get("detail"):
-                for line in a["detail"][:200].split("\n"):
+            level = (a.get("level") or "").upper()
+            y = _text(page, f"[{level}] {a.get('title', '')}", 50, y, size=9, bold=True)
+            detail = a.get("detail")
+            if detail:
+                for line in str(detail)[:200].split("\n"):
                     y = _text(page, line, 60, y, size=8, color=(0.3, 0.3, 0.3))
             y += 3
 
@@ -74,10 +87,15 @@ def generate_vehicle_pdf(vehicle, analysis: dict, db: Session) -> bytes:
             if y > 780:
                 page = doc.new_page(width=595, height=842)
                 y = 40
-            cost_str = f"{ev.total_cost:.2f} EUR" if ev.total_cost else ""
-            km_str = f"{ev.mileage:,} km" if ev.mileage else ""
+            cost_str = ""
+            if ev.total_cost is not None and isinstance(ev.total_cost, (int, float)):
+                cost_str = f"{ev.total_cost:.2f} EUR"
+            km_str = ""
+            if ev.mileage is not None and isinstance(ev.mileage, (int, float)):
+                km_str = f"{ev.mileage:,} km"
             y = _text(page, f"{ev.date}  {km_str}  {ev.garage_name or ''}  {cost_str}", 50, y, size=9)
 
+    logger.info("Vehicle PDF report generated successfully")
     pdf_bytes = doc.tobytes()
     doc.close()
     return pdf_bytes
@@ -88,7 +106,7 @@ def _text(page, text: str, x: float, y: float, size: float = 10, bold: bool = Fa
     font = "helv" if not bold else "hebo"
     # fitz uses fontname conventions: helv=Helvetica, hebo=Helvetica-Bold
     tw = fitz.TextWriter(page.rect)
-    tw.append((x, y), text[:120], fontsize=size, font=fitz.Font(font))
+    tw.append((x, y), str(text or "")[:120], fontsize=size, font=fitz.Font(font))
     tw.write_text(page, color=color)
     return y + size + 4
 
@@ -102,6 +120,8 @@ def _section(page, title: str, y: float) -> float:
 
 def generate_booklet_pdf(vehicle, events: list, cts: list) -> bytes:
     """Generate official-style maintenance booklet."""
+    logger.info("Generating booklet PDF — vehicle_id=%s, events=%d, cts=%d",
+                getattr(vehicle, 'id', '?'), len(events), len(cts))
     doc = fitz.open()
 
     # Cover page
@@ -109,8 +129,13 @@ def generate_booklet_pdf(vehicle, events: list, cts: list) -> bytes:
     y = 200
     y = _text(page, "CARNET D'ENTRETIEN", 40, y, size=24, bold=True, color=(0.01, 0.23, 0.40))
     y += 10
-    y = _text(page, vehicle.name, 40, y, size=18, bold=True)
-    info = " ".join(p for p in [vehicle.brand, vehicle.model, f"({vehicle.year})" if vehicle.year else None] if p)
+    y = _text(page, vehicle.name or "N/R", 40, y, size=18, bold=True)
+    info_parts = [
+        vehicle.brand or "N/R",
+        vehicle.model or "",
+        f"({vehicle.year})" if vehicle.year else None,
+    ]
+    info = " ".join(p for p in info_parts if p)
     if info:
         y = _text(page, info, 40, y, size=14, color=(0.4, 0.4, 0.4))
     if vehicle.plate_number:
@@ -136,7 +161,7 @@ def generate_booklet_pdf(vehicle, events: list, cts: list) -> bytes:
             # Intervention header
             page.draw_rect(fitz.Rect(40, y - 2, 555, y + 14), color=(0.93, 0.93, 0.93), fill=(0.93, 0.93, 0.93))
             header = f"#{i+1}  {ev.date}"
-            if ev.mileage:
+            if ev.mileage is not None and isinstance(ev.mileage, (int, float)):
                 header += f"  —  {ev.mileage:,} km"
             if ev.garage_name:
                 header += f"  —  {ev.garage_name}"
@@ -148,12 +173,14 @@ def generate_booklet_pdf(vehicle, events: list, cts: list) -> bytes:
                     page = doc.new_page(width=595, height=842)
                     y = 40
                 desc = (item.description or "")[:80]
-                price = f"{item.total_price:.2f} EUR" if item.total_price else ""
+                price = ""
+                if item.total_price is not None and isinstance(item.total_price, (int, float)):
+                    price = f"{item.total_price:.2f} EUR"
                 y = _text(page, f"  {desc}", 50, y, size=8)
                 if price:
                     _text(page, price, 480, y - 12, size=8, color=(0.3, 0.3, 0.3))
 
-            if ev.total_cost:
+            if ev.total_cost is not None and isinstance(ev.total_cost, (int, float)):
                 y = _text(page, f"Total : {ev.total_cost:.2f} EUR", 400, y, size=9, bold=True, color=(0.01, 0.23, 0.40))
             y += 5
 
@@ -172,7 +199,7 @@ def generate_booklet_pdf(vehicle, events: list, cts: list) -> bytes:
             result = (ct.result or "").upper()
             color = (0.13, 0.55, 0.13) if ct.result == "favorable" else (0.8, 0.1, 0.1)
             y = _text(page, f"{ct.date}  —  {result}", 40, y, size=11, bold=True, color=color)
-            if ct.mileage:
+            if ct.mileage is not None and isinstance(ct.mileage, (int, float)):
                 y = _text(page, f"{ct.mileage:,} km  —  {ct.center_name or ''}", 50, y, size=9, color=(0.4, 0.4, 0.4))
 
             for d in ct.defects:
@@ -186,6 +213,7 @@ def generate_booklet_pdf(vehicle, events: list, cts: list) -> bytes:
                 y = _text(page, "  Aucun defaut", 50, y, size=8, color=(0.13, 0.55, 0.13))
             y += 8
 
+    logger.info("Booklet PDF generated successfully")
     pdf_bytes = doc.tobytes()
     doc.close()
     return pdf_bytes
