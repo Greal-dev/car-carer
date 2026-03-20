@@ -12,6 +12,7 @@
     <title>Care of your Car</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <link rel="stylesheet" href="/static/css/style.css">
     <script>
@@ -38,9 +39,9 @@
             </div>
             <div class="bg-white rounded-xl shadow-lg p-6 border">
                 <!-- Tab toggle -->
-                <div class="flex mb-6 bg-gray-100 rounded-lg p-1">
-                    <button @click="authView = 'login'" :class="authView === 'login' ? 'bg-white shadow text-brand-700' : 'text-gray-500'" class="flex-1 py-2 rounded-md text-sm font-medium transition">Connexion</button>
-                    <button @click="authView = 'register'" :class="authView === 'register' ? 'bg-white shadow text-brand-700' : 'text-gray-500'" class="flex-1 py-2 rounded-md text-sm font-medium transition">Inscription</button>
+                <div class="flex mb-6 bg-gray-100 rounded-lg p-1" role="tablist" aria-label="Connexion ou inscription">
+                    <button @click="authView = 'login'" :class="authView === 'login' ? 'bg-white shadow text-brand-700' : 'text-gray-500'" :aria-selected="authView === 'login'" role="tab" class="flex-1 py-2 rounded-md text-sm font-medium transition">Connexion</button>
+                    <button @click="authView = 'register'" :class="authView === 'register' ? 'bg-white shadow text-brand-700' : 'text-gray-500'" :aria-selected="authView === 'register'" role="tab" class="flex-1 py-2 rounded-md text-sm font-medium transition">Inscription</button>
                 </div>
 
                 <!-- Error -->
@@ -98,10 +99,10 @@
                         <h1 class="text-xl font-bold">Care of your Car</h1>
                     </div>
                     <div class="flex items-center gap-3">
-                        <nav class="flex gap-1">
-                            <button @click="view = 'dashboard'; loadDashboard()" :class="view === 'dashboard' ? 'bg-brand-600' : 'hover:bg-brand-600/50'" class="px-3 py-2 rounded-lg transition text-sm">Dashboard</button>
-                            <button @click="view = 'vehicles'" :class="view === 'vehicles' ? 'bg-brand-600' : 'hover:bg-brand-600/50'" class="px-3 py-2 rounded-lg transition text-sm">Vehicules</button>
-                            <button @click="view = 'chat'; loadConversations()" :class="view === 'chat' ? 'bg-brand-600' : 'hover:bg-brand-600/50'" class="px-3 py-2 rounded-lg transition text-sm">Chat</button>
+                        <nav class="flex gap-1" role="tablist" aria-label="Navigation principale">
+                            <button @click="view = 'dashboard'; loadDashboard()" :class="view === 'dashboard' ? 'bg-brand-600' : 'hover:bg-brand-600/50'" :aria-selected="view === 'dashboard'" role="tab" class="px-3 py-2 rounded-lg transition text-sm">Dashboard</button>
+                            <button @click="view = 'vehicles'" :class="view === 'vehicles' ? 'bg-brand-600' : 'hover:bg-brand-600/50'" :aria-selected="view === 'vehicles'" role="tab" class="px-3 py-2 rounded-lg transition text-sm">Vehicules</button>
+                            <button @click="view = 'chat'; loadConversations()" :class="view === 'chat' ? 'bg-brand-600' : 'hover:bg-brand-600/50'" :aria-selected="view === 'chat'" role="tab" class="px-3 py-2 rounded-lg transition text-sm">Chat</button>
                         </nav>
                         <div class="h-6 w-px bg-brand-500/50"></div>
                         <div class="flex items-center gap-2">
@@ -182,7 +183,7 @@
                 <div x-show="view === 'vehicles'" x-cloak>
                     <div class="flex items-center justify-between mb-6">
                         <h2 class="text-2xl font-bold text-gray-800">Mes vehicules</h2>
-                        <button @click="showAddVehicle = true" class="bg-brand-600 text-white px-4 py-2 rounded-lg hover:bg-brand-700 transition flex items-center gap-2">
+                        <button @click="showAddVehicle = true" class="bg-brand-600 text-white px-4 py-2 rounded-lg hover:bg-brand-700 transition flex items-center gap-2" aria-label="Ajouter un vehicule">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
                             Ajouter
                         </button>
@@ -320,7 +321,7 @@
                                     <!-- Vehicle photo -->
                                     <div class="relative group">
                                         <div class="w-14 h-14 rounded-xl bg-gray-100 flex items-center justify-center overflow-hidden border-2 border-gray-200">
-                                            <img x-show="vehiclePhotoUrl" :src="vehiclePhotoUrl" class="w-full h-full object-cover" alt="">
+                                            <img x-show="vehiclePhotoUrl" :src="vehiclePhotoUrl" class="w-full h-full object-cover" alt="Photo du vehicule">
                                             <svg x-show="!vehiclePhotoUrl" class="w-7 h-7 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10m10 0H3m10 0h2m4 0h1a1 1 0 001-1v-4.586a1 1 0 00-.293-.707l-3.414-3.414A1 1 0 0016.586 6H13"/></svg>
                                         </div>
                                         <label class="absolute inset-0 flex items-center justify-center bg-black/40 rounded-xl opacity-0 group-hover:opacity-100 cursor-pointer transition">
@@ -340,7 +341,7 @@
                                     <button @click="openEditVehicle()" class="text-gray-400 hover:text-brand-600 transition" title="Modifier" aria-label="Modifier le vehicule">
                                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
                                     </button>
-                                    <button @click="selectedVehicle = null" class="text-gray-400 hover:text-gray-600">
+                                    <button @click="selectedVehicle = null" class="text-gray-400 hover:text-gray-600" aria-label="Fermer le detail du vehicule">
                                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                                     </button>
                                 </div>
@@ -428,22 +429,22 @@
                             </div>
 
                             <!-- Tabs -->
-                            <div class="flex border-b mb-4 overflow-x-auto">
-                                <button @click="detailTab = 'analysis'" :class="detailTab === 'analysis' ? 'border-brand-500 text-brand-600' : 'border-transparent text-gray-500'" class="px-4 py-2 border-b-2 font-medium transition flex items-center gap-1 whitespace-nowrap">
+                            <div class="flex border-b mb-4 overflow-x-auto" role="tablist" aria-label="Onglets du vehicule">
+                                <button @click="detailTab = 'analysis'" :class="detailTab === 'analysis' ? 'border-brand-500 text-brand-600' : 'border-transparent text-gray-500'" :aria-selected="detailTab === 'analysis'" role="tab" class="px-4 py-2 border-b-2 font-medium transition flex items-center gap-1 whitespace-nowrap">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
                                     Bilan
                                     <span x-show="analysis && analysis.alerts.filter(a => (a.level === 'critical' || a.level === 'warning')).length > 0"
                                           class="ml-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center"
                                           x-text="analysis ? analysis.alerts.filter(a => a.level === 'critical' || a.level === 'warning').length : ''"></span>
                                 </button>
-                                <button @click="detailTab = 'maintenance'" :class="detailTab === 'maintenance' ? 'border-brand-500 text-brand-600' : 'border-transparent text-gray-500'" class="px-4 py-2 border-b-2 font-medium transition whitespace-nowrap">Entretiens</button>
-                                <button @click="detailTab = 'ct'" :class="detailTab === 'ct' ? 'border-brand-500 text-brand-600' : 'border-transparent text-gray-500'" class="px-4 py-2 border-b-2 font-medium transition whitespace-nowrap">CT</button>
-                                <button @click="detailTab = 'reminders'; loadReminders()" :class="detailTab === 'reminders' ? 'border-brand-500 text-brand-600' : 'border-transparent text-gray-500'" class="px-4 py-2 border-b-2 font-medium transition whitespace-nowrap relative">
+                                <button @click="detailTab = 'maintenance'" :class="detailTab === 'maintenance' ? 'border-brand-500 text-brand-600' : 'border-transparent text-gray-500'" :aria-selected="detailTab === 'maintenance'" role="tab" class="px-4 py-2 border-b-2 font-medium transition whitespace-nowrap">Entretiens</button>
+                                <button @click="detailTab = 'ct'" :class="detailTab === 'ct' ? 'border-brand-500 text-brand-600' : 'border-transparent text-gray-500'" :aria-selected="detailTab === 'ct'" role="tab" class="px-4 py-2 border-b-2 font-medium transition whitespace-nowrap">CT</button>
+                                <button @click="detailTab = 'reminders'; loadReminders()" :class="detailTab === 'reminders' ? 'border-brand-500 text-brand-600' : 'border-transparent text-gray-500'" :aria-selected="detailTab === 'reminders'" role="tab" class="px-4 py-2 border-b-2 font-medium transition whitespace-nowrap relative">
                                     Rappels
                                     <span x-show="reminderBadge > 0" class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center" x-text="reminderBadge"></span>
                                 </button>
-                                <button @click="detailTab = 'budget'; loadStats(); $nextTick(() => renderCharts())" :class="detailTab === 'budget' ? 'border-brand-500 text-brand-600' : 'border-transparent text-gray-500'" class="px-4 py-2 border-b-2 font-medium transition whitespace-nowrap">Budget</button>
-                                <button @click="detailTab = 'docs'" :class="detailTab === 'docs' ? 'border-brand-500 text-brand-600' : 'border-transparent text-gray-500'" class="px-4 py-2 border-b-2 font-medium transition whitespace-nowrap">Documents</button>
+                                <button @click="detailTab = 'budget'; loadStats(); $nextTick(() => renderCharts())" :class="detailTab === 'budget' ? 'border-brand-500 text-brand-600' : 'border-transparent text-gray-500'" :aria-selected="detailTab === 'budget'" role="tab" class="px-4 py-2 border-b-2 font-medium transition whitespace-nowrap">Budget</button>
+                                <button @click="detailTab = 'docs'" :class="detailTab === 'docs' ? 'border-brand-500 text-brand-600' : 'border-transparent text-gray-500'" :aria-selected="detailTab === 'docs'" role="tab" class="px-4 py-2 border-b-2 font-medium transition whitespace-nowrap">Documents</button>
                             </div>
 
                             <!-- Analysis tab -->
@@ -610,10 +611,10 @@
                                     </select>
                                     <input x-model="maintenanceFilter.date_from" type="date" @change="searchMaintenance()" class="border rounded-lg px-2 py-2 text-sm" title="Date debut">
                                     <input x-model="maintenanceFilter.date_to" type="date" @change="searchMaintenance()" class="border rounded-lg px-2 py-2 text-sm" title="Date fin">
-                                    <button x-show="filteredMaintenance !== null" @click="clearFilter()" class="text-xs text-gray-500 hover:text-red-500 px-2 py-2" title="Effacer filtres">
+                                    <button x-show="filteredMaintenance !== null" @click="clearFilter()" class="text-xs text-gray-500 hover:text-red-500 px-2 py-2" title="Effacer filtres" aria-label="Effacer les filtres">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                                     </button>
-                                    <button @click="exportCSV()" class="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-2 rounded-lg transition flex items-center gap-1" title="Exporter CSV">
+                                    <button @click="exportCSV()" class="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-2 rounded-lg transition flex items-center gap-1" title="Exporter CSV" aria-label="Exporter en CSV">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
                                         CSV
                                     </button>
@@ -634,7 +635,7 @@
                                                 </div>
                                                 <div class="flex items-center gap-2">
                                                     <span class="font-bold text-brand-700" x-text="ev.total_cost ? ev.total_cost.toFixed(2) + ' EUR' : ''"></span>
-                                                    <button @click="deleteMaintenanceEvent(ev.id)" class="text-gray-300 hover:text-red-500 transition opacity-0 group-hover:opacity-100" title="Supprimer">
+                                                    <button @click="deleteMaintenanceEvent(ev.id)" class="text-gray-300 hover:text-red-500 transition opacity-0 group-hover:opacity-100" title="Supprimer" aria-label="Supprimer cet entretien">
                                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                                                     </button>
                                                 </div>
@@ -671,7 +672,7 @@
                                                     <span class="text-xs px-2 py-0.5 rounded-full font-medium"
                                                           :class="ct.result === 'favorable' ? 'bg-green-100 text-green-700' : ct.result === 'contre_visite' ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700'"
                                                           x-text="ct.result.toUpperCase()"></span>
-                                                    <button @click="deleteCTReport(ct.id)" class="text-gray-300 hover:text-red-500 transition opacity-0 group-hover:opacity-100" title="Supprimer">
+                                                    <button @click="deleteCTReport(ct.id)" class="text-gray-300 hover:text-red-500 transition opacity-0 group-hover:opacity-100" title="Supprimer" aria-label="Supprimer ce controle technique">
                                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                                                     </button>
                                                 </div>
@@ -837,7 +838,7 @@
                                 <input x-model="chatInput" type="text" placeholder="Posez votre question sur votre vehicule..."
                                        class="flex-1 border rounded-xl px-4 py-3 focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
                                        :disabled="chatLoading">
-                                <button type="submit" :disabled="chatLoading || !chatInput.trim()" class="bg-brand-600 text-white px-6 rounded-xl hover:bg-brand-700 transition disabled:opacity-50">
+                                <button type="submit" :disabled="chatLoading || !chatInput.trim()" class="bg-brand-600 text-white px-6 rounded-xl hover:bg-brand-700 transition disabled:opacity-50" aria-label="Envoyer le message">
                                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
                                 </button>
                             </form>

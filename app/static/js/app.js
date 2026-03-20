@@ -1,3 +1,18 @@
+// --- Safe fetch wrapper with timeout and error handling (T-D02) ---
+async function safeFetch(url, options = {}) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30000);
+    try {
+        const res = await fetch(url, { ...options, signal: controller.signal });
+        clearTimeout(timeout);
+        return res;
+    } catch (e) {
+        clearTimeout(timeout);
+        if (e.name === 'AbortError') throw new Error('Requête expirée (30s)');
+        throw e;
+    }
+}
+
 function app() {
     return {
         // Auth state
@@ -27,6 +42,7 @@ function app() {
         dragOver: false,
         batchProgress: null,
         batchResults: [],
+        batchEventSource: null,
 
         // Date clarification
         pendingDocs: [],
@@ -72,23 +88,33 @@ function app() {
             await this.checkAuth();
         },
 
+        // Cleanup EventSource on component destroy (T-D03)
+        destroy() {
+            if (this.batchEventSource) {
+                this.batchEventSource.close();
+                this.batchEventSource = null;
+            }
+        },
+
         // --- Auth ---
         async checkAuth() {
             try {
-                const res = await fetch('/api/auth/me');
+                const res = await safeFetch('/api/auth/me');
                 if (res.ok) {
                     this.currentUser = await res.json();
                     this.authenticated = true;
                     await this.loadVehicles();
                 }
-            } catch (e) {}
+            } catch (e) {
+                console.warn('Auth check failed:', e.message);
+            }
         },
 
         async doLogin() {
             this.authError = '';
             this.authLoading = true;
             try {
-                const res = await fetch('/api/auth/login', {
+                const res = await safeFetch('/api/auth/login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ email: this.authEmail, password: this.authPassword }),
@@ -113,7 +139,7 @@ function app() {
             this.authError = '';
             this.authLoading = true;
             try {
-                const res = await fetch('/api/auth/register', {
+                const res = await safeFetch('/api/auth/register', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ email: this.authEmail, password: this.authPassword }),
@@ -135,7 +161,11 @@ function app() {
         },
 
         async doLogout() {
-            await fetch('/api/auth/logout', { method: 'POST' });
+            try {
+                await safeFetch('/api/auth/logout', { method: 'POST' });
+            } catch (e) {
+                console.warn('Logout request failed:', e.message);
+            }
             this.authenticated = false;
             this.currentUser = null;
             this.vehicles = [];
@@ -144,22 +174,32 @@ function app() {
 
         // --- Vehicles ---
         async loadVehicles() {
-            const res = await fetch('/api/vehicles');
-            if (res.ok) {
-                this.vehicles = await res.json();
+            try {
+                const res = await safeFetch('/api/vehicles');
+                if (res.ok) {
+                    this.vehicles = await res.json();
+                }
+            } catch (e) {
+                console.error('Erreur chargement vehicules:', e.message);
             }
         },
 
         async addVehicle() {
-            const res = await fetch('/api/vehicles', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name: this.newVehicle.name }),
-            });
-            if (res.ok) {
-                this.showAddVehicle = false;
-                this.newVehicle = { name: '' };
-                await this.loadVehicles();
+            try {
+                const res = await safeFetch('/api/vehicles', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: this.newVehicle.name }),
+                });
+                if (res.ok) {
+                    this.showAddVehicle = false;
+                    this.newVehicle = { name: '' };
+                    await this.loadVehicles();
+                } else {
+                    alert('Erreur lors de la creation du vehicule');
+                }
+            } catch (e) {
+                alert('Erreur reseau: ' + e.message);
             }
         },
 
@@ -181,16 +221,22 @@ function app() {
                     data[k] = ['year', 'initial_mileage'].includes(k) ? parseInt(v) || null : v;
                 }
             }
-            const res = await fetch(`/api/vehicles/${this.selectedVehicle.id}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data),
-            });
-            if (res.ok) {
-                this.showEditVehicle = false;
-                await this.loadVehicles();
-                // Update selectedVehicle
-                this.selectedVehicle = this.vehicles.find(v => v.id === this.selectedVehicle.id) || this.selectedVehicle;
+            try {
+                const res = await safeFetch(`/api/vehicles/${this.selectedVehicle.id}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data),
+                });
+                if (res.ok) {
+                    this.showEditVehicle = false;
+                    await this.loadVehicles();
+                    // Update selectedVehicle
+                    this.selectedVehicle = this.vehicles.find(v => v.id === this.selectedVehicle.id) || this.selectedVehicle;
+                } else {
+                    alert('Erreur lors de la sauvegarde');
+                }
+            } catch (e) {
+                alert('Erreur reseau: ' + e.message);
             }
         },
 
@@ -214,36 +260,50 @@ function app() {
         },
 
         async loadMaintenance(vehicleId) {
-            const res = await fetch(`/api/documents/${vehicleId}/maintenance`);
-            if (res.ok) this.maintenanceEvents = await res.json();
+            try {
+                const res = await safeFetch(`/api/documents/${vehicleId}/maintenance`);
+                if (res.ok) this.maintenanceEvents = await res.json();
+            } catch (e) { console.error('Erreur chargement entretiens:', e.message); }
         },
 
         async loadCTReports(vehicleId) {
-            const res = await fetch(`/api/documents/${vehicleId}/ct-reports`);
-            if (res.ok) this.ctReports = await res.json();
+            try {
+                const res = await safeFetch(`/api/documents/${vehicleId}/ct-reports`);
+                if (res.ok) this.ctReports = await res.json();
+            } catch (e) { console.error('Erreur chargement CT:', e.message); }
         },
 
         async loadDocuments(vehicleId) {
-            const res = await fetch(`/api/documents/${vehicleId}`);
-            if (res.ok) this.documents = await res.json();
+            try {
+                const res = await safeFetch(`/api/documents/${vehicleId}`);
+                if (res.ok) this.documents = await res.json();
+            } catch (e) { console.error('Erreur chargement documents:', e.message); }
         },
 
         async loadPendingDocs(vehicleId) {
-            const res = await fetch(`/api/documents/pending/${vehicleId}`);
-            if (res.ok) this.pendingDocs = await res.json();
+            try {
+                const res = await safeFetch(`/api/documents/pending/${vehicleId}`);
+                if (res.ok) this.pendingDocs = await res.json();
+            } catch (e) { console.error('Erreur chargement documents en attente:', e.message); }
         },
 
         // --- Delete maintenance/CT ---
         async deleteMaintenanceEvent(eventId) {
             if (!confirm('Supprimer cet entretien ?')) return;
-            const res = await fetch(`/api/vehicles/${this.selectedVehicle.id}/maintenance/${eventId}`, { method: 'DELETE' });
-            if (res.ok) await this._refreshAll();
+            try {
+                const res = await safeFetch(`/api/vehicles/${this.selectedVehicle.id}/maintenance/${eventId}`, { method: 'DELETE' });
+                if (res.ok) await this._refreshAll();
+                else alert('Erreur lors de la suppression');
+            } catch (e) { alert('Erreur reseau: ' + e.message); }
         },
 
         async deleteCTReport(ctId) {
             if (!confirm('Supprimer ce controle technique ?')) return;
-            const res = await fetch(`/api/vehicles/${this.selectedVehicle.id}/ct/${ctId}`, { method: 'DELETE' });
-            if (res.ok) await this._refreshAll();
+            try {
+                const res = await safeFetch(`/api/vehicles/${this.selectedVehicle.id}/ct/${ctId}`, { method: 'DELETE' });
+                if (res.ok) await this._refreshAll();
+                else alert('Erreur lors de la suppression');
+            } catch (e) { alert('Erreur reseau: ' + e.message); }
         },
 
         // --- Upload ---
@@ -256,13 +316,13 @@ function app() {
             form.append('doc_type', this.uploadDocType);
             form.append('file', file);
             try {
-                const res = await fetch('/api/documents/upload', { method: 'POST', body: form });
+                const res = await safeFetch('/api/documents/upload', { method: 'POST', body: form });
                 const result = await res.json();
                 this.uploadResult = result;
                 if (result.needs_clarification) this.openClarifyModal(result);
                 await this._refreshAll();
             } catch (e) {
-                this.uploadResult = { success: false, message: 'Erreur reseau: ' + e.message };
+                this.uploadResult = { success: false, message: 'Erreur: ' + e.message };
             }
             this.uploading = false;
         },
@@ -289,21 +349,37 @@ function app() {
             this.uploadResult = null;
             this.batchProgress = { processed: 0, total: files.length, done: false };
             this.batchResults = [];
+            // Close any previous EventSource (T-D03)
+            if (this.batchEventSource) {
+                this.batchEventSource.close();
+                this.batchEventSource = null;
+            }
             const form = new FormData();
             form.append('vehicle_id', this.selectedVehicle.id);
             form.append('doc_type', this.uploadDocType);
             for (const f of files) form.append('files', f);
             try {
-                const res = await fetch('/api/documents/batch-upload', { method: 'POST', body: form });
+                const res = await safeFetch('/api/documents/batch-upload', { method: 'POST', body: form });
                 const data = await res.json();
                 const evtSource = new EventSource(`/api/documents/batch-status/${data.batch_id}`);
+                this.batchEventSource = evtSource;
                 evtSource.onmessage = async (event) => {
                     const msg = JSON.parse(event.data);
                     this.batchProgress = { ...this.batchProgress, ...msg };
                     if (msg.result) this.batchResults.push(msg.result);
-                    if (msg.done) { evtSource.close(); this.uploading = false; await this._refreshAll(); }
+                    if (msg.done) {
+                        evtSource.close();
+                        this.batchEventSource = null;
+                        this.uploading = false;
+                        await this._refreshAll();
+                    }
                 };
-                evtSource.onerror = () => { evtSource.close(); this.uploading = false; this.batchProgress = { ...this.batchProgress, done: true }; };
+                evtSource.onerror = () => {
+                    evtSource.close();
+                    this.batchEventSource = null;
+                    this.uploading = false;
+                    this.batchProgress = { ...this.batchProgress, done: true };
+                };
             } catch (e) {
                 this.uploading = false;
                 this.batchProgress = { processed: 0, total: files.length, done: true, error_count: files.length, success_count: 0 };
@@ -326,7 +402,7 @@ function app() {
         async confirmDate() {
             if (!this.clarifyDoc || !this.clarifyDate) return;
             try {
-                const res = await fetch(`/api/documents/${this.clarifyDoc.document_id}/confirm`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ date: this.clarifyDate }) });
+                const res = await safeFetch(`/api/documents/${this.clarifyDoc.document_id}/confirm`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ date: this.clarifyDate }) });
                 const result = await res.json();
                 this.uploadResult = result;
                 this.showClarifyModal = false;
@@ -354,7 +430,7 @@ function app() {
         async loadAnalysis(vehicleId) {
             this.analysisLoading = true;
             try {
-                const res = await fetch(`/api/vehicles/${vehicleId}/analysis`);
+                const res = await safeFetch(`/api/vehicles/${vehicleId}/analysis`);
                 if (res.ok) this.analysis = await res.json();
                 else this.analysis = null;
             } catch (e) { this.analysis = null; }
@@ -364,7 +440,7 @@ function app() {
         async loadStats(vehicleId) {
             this.statsLoading = true;
             try {
-                const res = await fetch(`/api/vehicles/${vehicleId}/stats`);
+                const res = await safeFetch(`/api/vehicles/${vehicleId}/stats`);
                 if (res.ok) this.stats = await res.json();
                 else this.stats = null;
             } catch (e) { this.stats = null; }
@@ -444,15 +520,21 @@ function app() {
 
         async exportPDF() {
             if (!this.selectedVehicle) return;
-            const res = await fetch(`/api/vehicles/${this.selectedVehicle.id}/export-pdf`);
-            if (res.ok) {
-                const blob = await res.blob();
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `rapport_${this.selectedVehicle.name.replace(/\s/g, '_')}.pdf`;
-                a.click();
-                URL.revokeObjectURL(url);
+            try {
+                const res = await safeFetch(`/api/vehicles/${this.selectedVehicle.id}/export-pdf`);
+                if (res.ok) {
+                    const blob = await res.blob();
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `rapport_${this.selectedVehicle.name.replace(/\s/g, '_')}.pdf`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                } else {
+                    alert('Erreur lors de l\'export PDF');
+                }
+            } catch (e) {
+                alert('Erreur: ' + e.message);
             }
         },
 
@@ -460,7 +542,7 @@ function app() {
         async loadDashboard() {
             this.dashboardLoading = true;
             try {
-                const res = await fetch('/api/vehicles/dashboard');
+                const res = await safeFetch('/api/vehicles/dashboard');
                 if (res.ok) this.dashboard = await res.json();
             } catch (e) { this.dashboard = null; }
             this.dashboardLoading = false;
@@ -471,10 +553,15 @@ function app() {
             if (!file || !this.selectedVehicle) return;
             const formData = new FormData();
             formData.append('file', file);
-            const res = await fetch(`/api/vehicles/${this.selectedVehicle.id}/photo`, { method: 'POST', body: formData });
-            if (res.ok) {
-                const data = await res.json();
-                this.vehiclePhotoUrl = `/api/vehicles/${this.selectedVehicle.id}/photo?t=${Date.now()}`;
+            try {
+                const res = await safeFetch(`/api/vehicles/${this.selectedVehicle.id}/photo`, { method: 'POST', body: formData });
+                if (res.ok) {
+                    this.vehiclePhotoUrl = `/api/vehicles/${this.selectedVehicle.id}/photo?t=${Date.now()}`;
+                } else {
+                    alert('Erreur lors de l\'upload de la photo');
+                }
+            } catch (e) {
+                alert('Erreur: ' + e.message);
             }
         },
 
@@ -498,7 +585,7 @@ function app() {
             if (!this.selectedVehicle) return;
             this.remindersLoading = true;
             try {
-                const res = await fetch(`/api/vehicles/${this.selectedVehicle.id}/reminders`);
+                const res = await safeFetch(`/api/vehicles/${this.selectedVehicle.id}/reminders`);
                 if (res.ok) {
                     this.reminders = await res.json();
                     this.reminderBadge = this.reminders.counts.critical + this.reminders.counts.high;
@@ -527,8 +614,10 @@ function app() {
             if (f.event_type) params.set('event_type', f.event_type);
             if (f.date_from) params.set('date_from', f.date_from);
             if (f.date_to) params.set('date_to', f.date_to);
-            const res = await fetch(`/api/vehicles/${this.selectedVehicle.id}/maintenance-search?${params}`);
-            if (res.ok) { const data = await res.json(); this.filteredMaintenance = data.items || data; }
+            try {
+                const res = await safeFetch(`/api/vehicles/${this.selectedVehicle.id}/maintenance-search?${params}`);
+                if (res.ok) { const data = await res.json(); this.filteredMaintenance = data.items || data; }
+            } catch (e) { console.error('Erreur recherche:', e.message); }
         },
 
         clearFilter() {
@@ -542,15 +631,21 @@ function app() {
 
         async exportCSV() {
             if (!this.selectedVehicle) return;
-            const res = await fetch(`/api/vehicles/${this.selectedVehicle.id}/export-csv`);
-            if (res.ok) {
-                const blob = await res.blob();
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `historique_${this.selectedVehicle.name.replace(/\s/g, '_')}.csv`;
-                a.click();
-                URL.revokeObjectURL(url);
+            try {
+                const res = await safeFetch(`/api/vehicles/${this.selectedVehicle.id}/export-csv`);
+                if (res.ok) {
+                    const blob = await res.blob();
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `historique_${this.selectedVehicle.name.replace(/\s/g, '_')}.csv`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                } else {
+                    alert('Erreur lors de l\'export CSV');
+                }
+            } catch (e) {
+                alert('Erreur: ' + e.message);
             }
         },
 
@@ -558,8 +653,10 @@ function app() {
         async loadConversations() {
             let url = '/api/chat/conversations';
             if (this.chatVehicleId) url += `?vehicle_id=${this.chatVehicleId}`;
-            const res = await fetch(url);
-            if (res.ok) this.conversations = await res.json();
+            try {
+                const res = await safeFetch(url);
+                if (res.ok) this.conversations = await res.json();
+            } catch (e) { console.error('Erreur chargement conversations:', e.message); }
         },
 
         newConversation() {
@@ -570,8 +667,10 @@ function app() {
 
         async selectConversation(c) {
             this.currentConversation = c;
-            const res = await fetch(`/api/chat/conversations/${c.id}/messages`);
-            if (res.ok) this.chatMessages = await res.json();
+            try {
+                const res = await safeFetch(`/api/chat/conversations/${c.id}/messages`);
+                if (res.ok) this.chatMessages = await res.json();
+            } catch (e) { console.error('Erreur chargement messages:', e.message); }
             this.$nextTick(() => this.scrollChat());
         },
 
@@ -587,7 +686,7 @@ function app() {
             this.chatMessages.push({ id: Date.now(), role: 'user', content: text, created_at: new Date().toISOString() });
             this.$nextTick(() => this.scrollChat());
             try {
-                const res = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: text, conversation_id: this.currentConversation?.id || null, vehicle_id: this.chatVehicleId }) });
+                const res = await safeFetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: text, conversation_id: this.currentConversation?.id || null, vehicle_id: this.chatVehicleId }) });
                 const data = await res.json();
                 if (!this.currentConversation) {
                     this.currentConversation = { id: data.conversation_id, title: text.substring(0, 80) };
@@ -614,7 +713,15 @@ function app() {
                 .replace(/^\s*[-*]\s+(.+)$/gm, '<li>$1</li>')
                 .replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>')
                 .replace(/\n/g, '<br>');
-            return '<div class="chat-md">' + html + '</div>';
+            html = '<div class="chat-md">' + html + '</div>';
+            // Sanitize HTML output (T-D01 - XSS prevention)
+            if (typeof DOMPurify !== 'undefined') {
+                return DOMPurify.sanitize(html, {
+                    ALLOWED_TAGS: ['div', 'p', 'br', 'strong', 'em', 'code', 'pre', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'a', 'blockquote', 'table', 'thead', 'tbody', 'tr', 'th', 'td'],
+                    ALLOWED_ATTR: ['class', 'href', 'target', 'rel'],
+                });
+            }
+            return html;
         },
     };
 }
