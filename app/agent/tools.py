@@ -1,5 +1,6 @@
 """Agent tools for querying the vehicle maintenance database."""
 
+import logging
 from datetime import date
 from typing import Optional
 
@@ -11,6 +12,8 @@ from app.models import (
     CTReport, CTDefect, Document,
 )
 from app.services.analysis import analyze_vehicle
+
+logger = logging.getLogger(__name__)
 
 # Tool definitions for Claude API
 TOOL_DEFINITIONS = [
@@ -102,8 +105,23 @@ TOOL_DEFINITIONS = [
 ]
 
 
-def execute_tool(tool_name: str, tool_input: dict, db: Session) -> str:
-    """Execute a tool and return the result as a string."""
+def execute_tool(tool_name: str, tool_input: dict, db: Session, allowed_vehicle_ids: list[int] | None = None) -> str:
+    """Execute a tool and return the result as a string.
+
+    Args:
+        tool_name: Name of the tool to execute
+        tool_input: Tool input parameters
+        db: Database session
+        allowed_vehicle_ids: If provided, restrict access to these vehicle IDs only
+    """
+    # Check vehicle ownership if allowed_vehicle_ids is set
+    vehicle_id = tool_input.get("vehicle_id")
+    if allowed_vehicle_ids is not None and vehicle_id is not None:
+        if vehicle_id not in allowed_vehicle_ids:
+            logger.warning("Ownership check failed — tool=%s, vehicle_id=%s, allowed=%s",
+                           tool_name, vehicle_id, allowed_vehicle_ids)
+            return "Vehicule non autorise."
+
     handlers = {
         "get_vehicle_info": _get_vehicle_info,
         "search_maintenance": _search_maintenance,
@@ -115,7 +133,10 @@ def execute_tool(tool_name: str, tool_input: dict, db: Session) -> str:
     }
     handler = handlers.get(tool_name)
     if not handler:
+        logger.warning("Unknown tool requested: %s", tool_name)
         return f"Outil inconnu: {tool_name}"
+
+    logger.info("Executing tool — name=%s, input=%s", tool_name, tool_input)
     return handler(db=db, **tool_input)
 
 
@@ -190,9 +211,15 @@ def _search_maintenance(
     if event_type:
         query = query.filter(MaintenanceEvent.event_type == event_type)
     if date_from:
-        query = query.filter(MaintenanceEvent.date >= date.fromisoformat(date_from))
+        try:
+            query = query.filter(MaintenanceEvent.date >= date.fromisoformat(date_from))
+        except ValueError:
+            return f"Format de date invalide pour date_from: '{date_from}'. Utilisez le format YYYY-MM-DD."
     if date_to:
-        query = query.filter(MaintenanceEvent.date <= date.fromisoformat(date_to))
+        try:
+            query = query.filter(MaintenanceEvent.date <= date.fromisoformat(date_to))
+        except ValueError:
+            return f"Format de date invalide pour date_to: '{date_to}'. Utilisez le format YYYY-MM-DD."
 
     events = query.order_by(MaintenanceEvent.date.desc()).all()
 

@@ -1,5 +1,6 @@
 """Proactive maintenance intelligence — vehicle health analysis."""
 
+import logging
 from datetime import date
 from dateutil.relativedelta import relativedelta
 
@@ -11,6 +12,8 @@ from app.models import (
     CTReport, CTDefect,
 )
 from app.services.mileage import get_last_known_mileage
+
+logger = logging.getLogger(__name__)
 
 # --- Maintenance interval thresholds ---
 # (category_keywords, max_km, max_months, label)
@@ -32,8 +35,10 @@ SEVERITY_ORDER = {"a_surveiller": 0, "mineur": 1, "majeur": 2, "critique": 3}
 
 def analyze_vehicle(db: Session, vehicle_id: int) -> dict:
     """Run complete proactive analysis on a vehicle. Returns structured alerts."""
+    logger.info("Starting vehicle analysis — vehicle_id=%d", vehicle_id)
     vehicle = db.get(Vehicle, vehicle_id)
     if not vehicle:
+        logger.warning("Vehicle not found — vehicle_id=%d", vehicle_id)
         return {"error": "Vehicule non trouve"}
 
     ct_analysis = _analyze_ct_evolution(db, vehicle_id)
@@ -48,6 +53,9 @@ def analyze_vehicle(db: Session, vehicle_id: int) -> dict:
     alerts.sort(key=lambda a: {"critical": 0, "warning": 1, "info": 2}.get(a["level"], 3))
 
     health_score = _compute_health_score(ct_analysis, interval_alerts, unresolved)
+
+    logger.info("Analysis complete — vehicle_id=%d, alerts=%d, score=%s",
+                vehicle_id, len(alerts), health_score.get("score"))
 
     return {
         "vehicle_id": vehicle_id,
