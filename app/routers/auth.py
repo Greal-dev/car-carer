@@ -1,3 +1,5 @@
+import time
+
 from fastapi import APIRouter, Depends, HTTPException, Response, Request
 from pydantic import BaseModel, EmailStr
 from sqlalchemy.orm import Session
@@ -9,6 +11,34 @@ from app.services.auth import hash_password, verify_password, create_token, deco
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 COOKIE_NAME = "cc_token"
+
+# Simple in-memory rate limiter: max 5 attempts per IP per 60 seconds
+_rate_limit_store: dict[str, list[float]] = {}
+_RATE_LIMIT_MAX = 5
+_RATE_LIMIT_WINDOW = 60  # seconds
+
+
+def _check_rate_limit(request: Request):
+    """Raise 429 if the IP has exceeded the rate limit for auth endpoints."""
+    ip = request.client.host if request.client else "unknown"
+    now = time.monotonic()
+
+    # Clean expired entries for this IP
+    if ip in _rate_limit_store:
+        _rate_limit_store[ip] = [t for t in _rate_limit_store[ip] if now - t < _RATE_LIMIT_WINDOW]
+    else:
+        _rate_limit_store[ip] = []
+
+    # Periodically prune IPs with no recent entries (avoid memory leak)
+    if len(_rate_limit_store) > 1000:
+        expired_ips = [k for k, v in _rate_limit_store.items() if not v]
+        for k in expired_ips:
+            del _rate_limit_store[k]
+
+    if len(_rate_limit_store[ip]) >= _RATE_LIMIT_MAX:
+        raise HTTPException(429, "Trop de tentatives, reessayez plus tard")
+
+    _rate_limit_store[ip].append(now)
 
 
 class RegisterRequest(BaseModel):
@@ -29,7 +59,8 @@ class UserOut(BaseModel):
 
 
 @router.post("/register", response_model=UserOut)
-def register(body: RegisterRequest, response: Response, db: Session = Depends(get_db)):
+def register(body: RegisterRequest, request: Request, response: Response, db: Session = Depends(get_db)):
+    _check_rate_limit(request)
     if len(body.password) < 6:
         raise HTTPException(400, "Mot de passe trop court (min 6 caracteres)")
 
@@ -51,7 +82,8 @@ def register(body: RegisterRequest, response: Response, db: Session = Depends(ge
 
 
 @router.post("/login", response_model=UserOut)
-def login(body: LoginRequest, response: Response, db: Session = Depends(get_db)):
+def login(body: LoginRequest, request: Request, response: Response, db: Session = Depends(get_db)):
+    _check_rate_limit(request)
     user = db.query(User).filter(User.email == body.email.lower().strip()).first()
     if not user or not verify_password(body.password, user.hashed_password):
         raise HTTPException(401, "Email ou mot de passe incorrect")

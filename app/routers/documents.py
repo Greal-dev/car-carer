@@ -1,5 +1,7 @@
 import asyncio
 import json
+import logging
+import time
 import uuid
 from datetime import date
 from pathlib import Path
@@ -19,12 +21,24 @@ from app.schemas.ct_report import CTReportOut
 from app.services.extraction import extract_document
 from app.routers.auth import get_current_user
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/api/documents", tags=["documents"])
 
 ALLOWED_MIME = {"application/pdf", "image/png", "image/jpeg", "image/webp"}
 
 # In-memory batch job tracker
 _batch_jobs: dict[str, dict] = {}
+_batch_lock = asyncio.Lock()
+_BATCH_TTL_SECONDS = 3600  # 1 hour
+
+
+async def _cleanup_expired_batch_jobs():
+    """Remove batch jobs older than TTL."""
+    now = time.monotonic()
+    expired = [bid for bid, job in _batch_jobs.items() if now - job.get("created_at", now) > _BATCH_TTL_SECONDS]
+    for bid in expired:
+        del _batch_jobs[bid]
 
 
 @router.post("/upload", response_model=ExtractionResult)
@@ -118,6 +132,11 @@ def confirm_document_date(
     if not doc:
         raise HTTPException(404, "Document non trouve")
 
+    # Verify the user owns the vehicle associated with this document
+    vehicle = db.get(Vehicle, doc.vehicle_id)
+    if not vehicle or (vehicle.user_id and vehicle.user_id != user.id):
+        raise HTTPException(404, "Document non trouve")
+
     if doc.extracted:
         raise HTTPException(400, "Document deja finalise")
 
@@ -131,7 +150,6 @@ def confirm_document_date(
     data["date_confidence"] = "confirmed"
     doc.extraction_raw = json.dumps(data, ensure_ascii=False)
 
-    vehicle = db.get(Vehicle, doc.vehicle_id)
     return _finalize_document(db, doc, vehicle, data, doc.doc_type)
 
 
@@ -144,6 +162,9 @@ async def batch_upload(
     db: Session = Depends(get_db),
 ):
     """Upload multiple files at once. Returns a batch_id to track progress via SSE."""
+    if len(files) > 100:
+        raise HTTPException(413, "Trop de fichiers (max 100)")
+
     vehicle = db.get(Vehicle, vehicle_id)
     if not vehicle or (vehicle.user_id and vehicle.user_id != user.id):
         raise HTTPException(404, "Vehicule non trouve")
@@ -166,15 +187,18 @@ async def batch_upload(
             "mime_type": mime,
         })
 
-    _batch_jobs[batch_id] = {
-        "vehicle_id": vehicle_id,
-        "doc_type": doc_type,
-        "files": saved_files,
-        "total": len(saved_files),
-        "processed": 0,
-        "results": [],
-        "done": False,
-    }
+    async with _batch_lock:
+        await _cleanup_expired_batch_jobs()
+        _batch_jobs[batch_id] = {
+            "vehicle_id": vehicle_id,
+            "doc_type": doc_type,
+            "files": saved_files,
+            "total": len(saved_files),
+            "processed": 0,
+            "results": [],
+            "done": False,
+            "created_at": time.monotonic(),
+        }
 
     # Launch processing in background
     asyncio.get_event_loop().create_task(_process_batch(batch_id))
@@ -196,10 +220,11 @@ async def _process_batch(batch_id: str):
                 vehicle = db.get(Vehicle, vehicle_id)
                 return await _process_single_file(db, vehicle, file_info, doc_type)
             except Exception as e:
+                logger.error(f"Batch processing error: {e}", exc_info=True)
                 return {
                     "filename": file_info["original_filename"],
                     "success": False,
-                    "message": str(e),
+                    "message": "Erreur de traitement",
                 }
             finally:
                 db.close()
@@ -230,7 +255,8 @@ async def _process_single_file(db: Session, vehicle: Vehicle, file_info: dict, d
     try:
         data = await extract_document(file_info["file_path"], doc_type)
     except Exception as e:
-        return {"filename": file_info["original_filename"], "success": False, "message": f"Extraction: {e}"}
+        logger.error(f"Batch extraction error for {file_info['original_filename']}: {e}", exc_info=True)
+        return {"filename": file_info["original_filename"], "success": False, "message": "Erreur de traitement"}
 
     if "error" in data:
         doc.extraction_raw = json.dumps(data, ensure_ascii=False)
@@ -302,6 +328,8 @@ async def _process_single_file(db: Session, vehicle: Vehicle, file_info: dict, d
 @router.get("/batch-status/{batch_id}")
 async def batch_status_sse(batch_id: str):
     """SSE endpoint to stream batch processing progress."""
+    async with _batch_lock:
+        await _cleanup_expired_batch_jobs()
     if batch_id not in _batch_jobs:
         raise HTTPException(404, "Batch non trouve")
 

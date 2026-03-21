@@ -27,6 +27,7 @@ class ConversationOut(BaseModel):
 
 class MessageOut(BaseModel):
     id: int
+    conversation_id: int
     role: str
     content: str
     created_at: datetime
