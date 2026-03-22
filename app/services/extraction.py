@@ -16,10 +16,10 @@ from app.config import settings
 logger = logging.getLogger(__name__)
 
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
-MODEL = "google/gemini-2.5-flash"
+MODEL = settings.extraction_model
 
 # Configurable timeout (seconds) and retry settings
-EXTRACTION_TIMEOUT = 60
+EXTRACTION_TIMEOUT = settings.extraction_timeout
 EXTRACTION_MAX_RETRIES = 2
 EXTRACTION_RETRY_DELAY = 2  # seconds between retries
 

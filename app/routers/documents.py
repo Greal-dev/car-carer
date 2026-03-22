@@ -11,7 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Q
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
-from app.config import UPLOAD_PATH
+from app.config import UPLOAD_PATH, settings
 from app.database import get_db, SessionLocal
 from app.models import Document, Vehicle, MaintenanceEvent, MaintenanceItem, CTReport, CTDefect
 from app.models.user import User
@@ -162,7 +162,7 @@ async def batch_upload(
     db: Session = Depends(get_db),
 ):
     """Upload multiple files at once. Returns a batch_id to track progress via SSE."""
-    if len(files) > 100:
+    if len(files) > settings.batch_max_files:
         raise HTTPException(413, "Trop de fichiers (max 100)")
 
     vehicle = db.get(Vehicle, vehicle_id)
@@ -211,7 +211,7 @@ async def _process_batch(batch_id: str):
     job = _batch_jobs[batch_id]
     vehicle_id = job["vehicle_id"]
     doc_type = job["doc_type"]
-    sem = asyncio.Semaphore(3)
+    sem = asyncio.Semaphore(settings.batch_max_concurrent)
 
     async def _worker(file_info):
         async with sem:

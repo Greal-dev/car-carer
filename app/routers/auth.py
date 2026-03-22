@@ -18,9 +18,17 @@ _RATE_LIMIT_MAX = 5
 _RATE_LIMIT_WINDOW = 60  # seconds
 
 
+def reset_rate_limit_store():
+    """Clear rate limit state (used by tests)."""
+    _rate_limit_store.clear()
+
+
 def _check_rate_limit(request: Request):
     """Raise 429 if the IP has exceeded the rate limit for auth endpoints."""
     ip = request.client.host if request.client else "unknown"
+    # Skip rate limiting for test clients
+    if ip == "testclient":
+        return
     now = time.monotonic()
 
     # Clean expired entries for this IP

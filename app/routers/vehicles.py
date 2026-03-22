@@ -9,7 +9,7 @@ from fastapi.responses import Response as RawResponse, FileResponse
 from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 
-from app.config import UPLOAD_PATH
+from app.config import UPLOAD_PATH, settings
 from app.database import get_db
 from app.models import Vehicle, MaintenanceEvent, MaintenanceItem, CTReport, CTDefect, Document
 from app.models.user import User
@@ -21,7 +21,7 @@ PHOTO_DIR = UPLOAD_PATH / "photos"
 PHOTO_DIR.mkdir(parents=True, exist_ok=True)
 
 ALLOWED_PHOTO_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
-MAX_PHOTO_SIZE = 10 * 1024 * 1024  # 10 MB
+MAX_PHOTO_SIZE = settings.max_photo_size_mb * 1024 * 1024
 
 router = APIRouter(prefix="/api/vehicles", tags=["vehicles"])
 

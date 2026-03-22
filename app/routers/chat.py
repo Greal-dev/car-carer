@@ -63,9 +63,10 @@ def send_message(req: ChatRequest, user: User = Depends(get_current_user), db: S
     )
     messages = [{"role": m.role, "content": m.content} for m in history]
 
-    # Call agent
+    # Call agent with ownership filter
+    allowed = _get_user_vehicle_ids(db, user)
     try:
-        response_text = chat(messages=messages, vehicle_id=conv.vehicle_id, db=db)
+        response_text = chat(messages=messages, vehicle_id=conv.vehicle_id, db=db, allowed_vehicle_ids=allowed)
     except Exception as e:
         response_text = f"Erreur de l'assistant: {e}"
 
