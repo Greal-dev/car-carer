@@ -15,7 +15,7 @@ def _require_owner(vehicle_id: int, user: User, db: Session) -> Vehicle:
     vehicle = db.get(Vehicle, vehicle_id)
     if not vehicle:
         raise HTTPException(404, "Vehicule non trouve")
-    if vehicle.user_id and vehicle.user_id != user.id:
+    if vehicle.user_id != user.id:
         # Check if user has owner role via VehicleAccess
         access = db.query(VehicleAccess).filter(
             VehicleAccess.vehicle_id == vehicle_id,

@@ -2,6 +2,8 @@ from datetime import date, datetime
 from typing import Optional
 from pydantic import BaseModel
 
+from app.enums import WorkType
+
 
 class MaintenanceItemOut(BaseModel):
     id: int
@@ -26,7 +28,7 @@ class MaintenanceEventOut(BaseModel):
     total_cost: Optional[float]
     notes: Optional[str]
     event_type: str
-    work_type: Optional[str] = None
+    work_type: Optional[WorkType] = None
     created_at: datetime
     items: list[MaintenanceItemOut] = []
 

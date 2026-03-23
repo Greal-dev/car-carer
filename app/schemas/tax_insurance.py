@@ -1,29 +1,31 @@
 from datetime import date, datetime
 from typing import Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+
+from app.enums import TaxInsuranceType, RenewalFrequency
 
 
 class TaxInsuranceCreate(BaseModel):
-    record_type: str  # "insurance", "vignette", "carbon_tax", "registration", "parking", "toll_tag", "other"
-    name: str
-    provider: Optional[str] = None
+    record_type: TaxInsuranceType
+    name: str = Field(..., min_length=1, max_length=255)
+    provider: Optional[str] = Field(None, max_length=255)
     date: date
-    cost: float
+    cost: float = Field(..., ge=0)
     next_renewal_date: Optional[date] = None
-    renewal_frequency: Optional[str] = None  # "monthly", "annual", "biennial", "one_time"
-    notes: Optional[str] = None
+    renewal_frequency: Optional[RenewalFrequency] = None
+    notes: Optional[str] = Field(None, max_length=2000)
     document_id: Optional[int] = None
 
 
 class TaxInsuranceUpdate(BaseModel):
-    record_type: Optional[str] = None
-    name: Optional[str] = None
-    provider: Optional[str] = None
+    record_type: Optional[TaxInsuranceType] = None
+    name: Optional[str] = Field(None, min_length=1, max_length=255)
+    provider: Optional[str] = Field(None, max_length=255)
     date: Optional[date] = None
-    cost: Optional[float] = None
+    cost: Optional[float] = Field(None, ge=0)
     next_renewal_date: Optional[date] = None
-    renewal_frequency: Optional[str] = None
-    notes: Optional[str] = None
+    renewal_frequency: Optional[RenewalFrequency] = None
+    notes: Optional[str] = Field(None, max_length=2000)
     document_id: Optional[int] = None
 
 

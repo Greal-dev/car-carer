@@ -18,7 +18,7 @@ def _get_user_vehicle_ids(db: Session, user: User) -> list[int]:
 
     # Vehicles the user owns directly
     owned = [v.id for v in db.query(Vehicle.id).filter(
-        (Vehicle.user_id == user.id) | (Vehicle.user_id.is_(None))
+        Vehicle.user_id == user.id
     ).all()]
     # Vehicles shared with the user via VehicleAccess
     shared = [a.vehicle_id for a in db.query(VehicleAccess.vehicle_id).filter(
@@ -28,10 +28,10 @@ def _get_user_vehicle_ids(db: Session, user: User) -> list[int]:
 
 
 def _check_conversation_ownership(conv: Conversation, user: User, db: Session):
-    """Raise 404 if conversation does not belong to a vehicle owned by the user."""
+    """Raise 404 if conversation does not belong to a vehicle the user can access."""
     if conv.vehicle_id is not None:
-        vehicle = db.get(Vehicle, conv.vehicle_id)
-        if not vehicle or (vehicle.user_id and vehicle.user_id != user.id):
+        allowed = _get_user_vehicle_ids(db, user)
+        if conv.vehicle_id not in allowed:
             raise HTTPException(404, "Conversation non trouvee")
     else:
         # No vehicle_id: verify the user has at least one message in this conversation
@@ -52,6 +52,11 @@ def send_message(req: ChatRequest, user: User = Depends(get_current_user), db: S
             raise HTTPException(404, "Conversation non trouvee")
         _check_conversation_ownership(conv, user, db)
     else:
+        # Verify the user has access to this vehicle
+        if req.vehicle_id:
+            allowed = _get_user_vehicle_ids(db, user)
+            if req.vehicle_id not in allowed:
+                raise HTTPException(404, "Vehicule non trouve")
         conv = Conversation(vehicle_id=req.vehicle_id, title=req.message[:80])
         db.add(conv)
         db.commit()

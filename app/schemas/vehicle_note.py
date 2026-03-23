@@ -1,15 +1,15 @@
 from datetime import datetime
 from typing import Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class VehicleNoteCreate(BaseModel):
-    content: str
+    content: str = Field(..., min_length=1, max_length=5000)
     pinned: bool = False
 
 
 class VehicleNoteUpdate(BaseModel):
-    content: Optional[str] = None
+    content: Optional[str] = Field(None, min_length=1, max_length=5000)
     pinned: Optional[bool] = None
 
 

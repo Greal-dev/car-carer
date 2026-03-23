@@ -28,6 +28,12 @@ PHOTO_DIR.mkdir(parents=True, exist_ok=True)
 ALLOWED_PHOTO_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
 MAX_PHOTO_SIZE = settings.max_photo_size_mb * 1024 * 1024
 
+# DoS protection: max records per vehicle per type
+MAX_FUEL_RECORDS = 500
+MAX_CUSTOM_REMINDERS = 100
+MAX_TAX_INSURANCE_RECORDS = 500
+MAX_VEHICLE_NOTES = 500
+
 router = APIRouter(prefix="/api/vehicles", tags=["vehicles"])
 
 
@@ -36,9 +42,12 @@ router = APIRouter(prefix="/api/vehicles", tags=["vehicles"])
 @router.get("/dashboard")
 def get_dashboard(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """Multi-vehicle dashboard with health scores and key stats."""
+    shared_ids = [a.vehicle_id for a in db.query(VehicleAccess.vehicle_id).filter(
+        VehicleAccess.user_id == user.id
+    ).all()]
     vehicles = (
         db.query(Vehicle)
-        .filter((Vehicle.user_id == user.id) | (Vehicle.user_id.is_(None)))
+        .filter((Vehicle.user_id == user.id) | (Vehicle.id.in_(shared_ids)))
         .order_by(Vehicle.name)
         .all()
     )
@@ -93,8 +102,8 @@ def _get_vehicle_or_404(vehicle_id: int, user: User, db: Session, require_role: 
     if not vehicle:
         raise HTTPException(404, "Vehicule non trouve")
 
-    # Direct owner (legacy or via user_id)
-    if vehicle.user_id is None or vehicle.user_id == user.id:
+    # Direct owner
+    if vehicle.user_id == user.id:
         return vehicle
 
     # Check shared access via VehicleAccess
@@ -117,6 +126,10 @@ def _get_vehicle_or_404(vehicle_id: int, user: User, db: Session, require_role: 
 @router.get("", response_model=list[VehicleSummary])
 def list_vehicles(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     from sqlalchemy import select, and_
+
+    shared_ids = [a.vehicle_id for a in db.query(VehicleAccess.vehicle_id).filter(
+        VehicleAccess.user_id == user.id
+    ).all()]
 
     # Subquery: last maintenance date per vehicle
     last_event_sq = (
@@ -233,7 +246,7 @@ def list_vehicles(user: User = Depends(get_current_user), db: Session = Depends(
         .outerjoin(spent_sq, Vehicle.id == spent_sq.c.vehicle_id)
         .outerjoin(doc_count_sq, Vehicle.id == doc_count_sq.c.vehicle_id)
         .outerjoin(ct_count_sq, Vehicle.id == ct_count_sq.c.vehicle_id)
-        .filter((Vehicle.user_id == user.id) | (Vehicle.user_id.is_(None)))
+        .filter((Vehicle.user_id == user.id) | (Vehicle.id.in_(shared_ids)))
         .order_by(Vehicle.name)
         .all()
     )
@@ -660,6 +673,9 @@ def create_fuel_record(
     db: Session = Depends(get_db),
 ):
     _get_vehicle_or_404(vehicle_id, user, db, require_role="editor")
+    count = db.query(func.count(FuelRecord.id)).filter(FuelRecord.vehicle_id == vehicle_id).scalar()
+    if count >= MAX_FUEL_RECORDS:
+        raise HTTPException(429, "Limite de records carburant atteinte pour ce vehicule")
     # Auto-calculate price_per_liter if not provided
     price_per_liter = data.price_per_liter
     if price_per_liter is None and data.liters > 0:
@@ -776,6 +792,9 @@ def create_custom_reminder(
     db: Session = Depends(get_db),
 ):
     _get_vehicle_or_404(vehicle_id, user, db, require_role="editor")
+    count = db.query(func.count(MaintenanceReminder.id)).filter(MaintenanceReminder.vehicle_id == vehicle_id).scalar()
+    if count >= MAX_CUSTOM_REMINDERS:
+        raise HTTPException(429, "Limite de rappels atteinte pour ce vehicule")
     reminder = MaintenanceReminder(vehicle_id=vehicle_id, **data.model_dump())
     db.add(reminder)
     db.commit()
@@ -842,6 +861,9 @@ def create_tax_insurance(
     db: Session = Depends(get_db),
 ):
     _get_vehicle_or_404(vehicle_id, user, db, require_role="editor")
+    count = db.query(func.count(TaxInsuranceRecord.id)).filter(TaxInsuranceRecord.vehicle_id == vehicle_id).scalar()
+    if count >= MAX_TAX_INSURANCE_RECORDS:
+        raise HTTPException(429, "Limite de records taxe/assurance atteinte pour ce vehicule")
     record = TaxInsuranceRecord(vehicle_id=vehicle_id, **data.model_dump())
     db.add(record)
     db.commit()
@@ -908,6 +930,9 @@ def create_vehicle_note(
     db: Session = Depends(get_db),
 ):
     _get_vehicle_or_404(vehicle_id, user, db, require_role="editor")
+    count = db.query(func.count(VehicleNote.id)).filter(VehicleNote.vehicle_id == vehicle_id).scalar()
+    if count >= MAX_VEHICLE_NOTES:
+        raise HTTPException(429, "Limite de notes atteinte pour ce vehicule")
     note = VehicleNote(vehicle_id=vehicle_id, **data.model_dump())
     db.add(note)
     db.commit()

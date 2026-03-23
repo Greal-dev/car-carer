@@ -50,12 +50,12 @@ def _check_rate_limit(request: Request):
 
 
 class RegisterRequest(BaseModel):
-    email: str
+    email: EmailStr
     password: str
 
 
 class LoginRequest(BaseModel):
-    email: str
+    email: EmailStr
     password: str
 
 

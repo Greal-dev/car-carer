@@ -168,15 +168,39 @@
         "photo_upload_error": "Error al subir la foto",
         "delete_error": "Error al eliminar",
         "deleted": "Eliminado con exito",
-        "conversation_deleted": "Conversacion eliminada"
+        "conversation_deleted": "Conversacion eliminada",
+        "fuel_added": "Repostaje anadido",
+        "fuel_deleted": "Repostaje eliminado",
+        "fuel_error": "Error al anadir repostaje",
+        "tax_added": "Registro anadido",
+        "tax_deleted": "Registro eliminado",
+        "tax_error": "Error al anadir registro",
+        "note_added": "Nota anadida",
+        "note_deleted": "Nota eliminada",
+        "note_error": "Error al anadir nota",
+        "vehicle_shared": "Vehiculo compartido",
+        "share_error": "Error al compartir",
+        "access_revoked": "Acceso revocado",
+        "password_changed": "Contrasena cambiada",
+        "password_mismatch": "Las contrasenas no coinciden",
+        "password_error": "Error al cambiar la contrasena",
+        "language_changed": "Idioma cambiado",
+        "vehicle_not_found": "Vehiculo no encontrado"
     },
     "confirm": {
         "delete_maintenance": "Eliminar este mantenimiento?",
         "delete_ct": "Eliminar este informe de ITV?",
         "delete_conversation": "Eliminar esta conversacion?",
+        "delete_fuel": "Eliminar este repostaje?",
+        "delete_tax": "Eliminar este registro?",
+        "delete_note": "Eliminar esta nota?",
+        "revoke_access": "Revocar este acceso?",
         "title": "Confirmacion",
         "yes": "Si",
         "no": "No"
+    },
+    "fuel": {
+        "chart_min_records": "Se necesitan al menos 2 repostajes para mostrar el grafico"
     },
     "clarify": {
         "title": "Confirmar fecha",

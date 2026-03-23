@@ -168,15 +168,39 @@
         "photo_upload_error": "Fehler beim Hochladen des Fotos",
         "delete_error": "Fehler beim Loeschen",
         "deleted": "Erfolgreich geloescht",
-        "conversation_deleted": "Gespraech geloescht"
+        "conversation_deleted": "Gespraech geloescht",
+        "fuel_added": "Tankvorgang hinzugefuegt",
+        "fuel_deleted": "Tankvorgang geloescht",
+        "fuel_error": "Fehler beim Hinzufuegen des Tankvorgangs",
+        "tax_added": "Eintrag hinzugefuegt",
+        "tax_deleted": "Eintrag geloescht",
+        "tax_error": "Fehler beim Hinzufuegen des Eintrags",
+        "note_added": "Notiz hinzugefuegt",
+        "note_deleted": "Notiz geloescht",
+        "note_error": "Fehler beim Hinzufuegen der Notiz",
+        "vehicle_shared": "Fahrzeug geteilt",
+        "share_error": "Fehler beim Teilen",
+        "access_revoked": "Zugang widerrufen",
+        "password_changed": "Passwort geaendert",
+        "password_mismatch": "Passwoerter stimmen nicht ueberein",
+        "password_error": "Fehler beim Aendern des Passworts",
+        "language_changed": "Sprache geaendert",
+        "vehicle_not_found": "Fahrzeug nicht gefunden"
     },
     "confirm": {
         "delete_maintenance": "Diesen Wartungseintrag loeschen?",
         "delete_ct": "Diesen HU-Bericht loeschen?",
         "delete_conversation": "Dieses Gespraech loeschen?",
+        "delete_fuel": "Diesen Tankvorgang loeschen?",
+        "delete_tax": "Diesen Eintrag loeschen?",
+        "delete_note": "Diese Notiz loeschen?",
+        "revoke_access": "Diesen Zugang widerrufen?",
         "title": "Bestaetigung",
         "yes": "Ja",
         "no": "Nein"
+    },
+    "fuel": {
+        "chart_min_records": "Mindestens 2 Tankvorgaenge erforderlich, um das Diagramm anzuzeigen"
     },
     "clarify": {
         "title": "Datum bestaetigen",

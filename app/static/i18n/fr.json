@@ -168,15 +168,39 @@
         "photo_upload_error": "Erreur lors de l'upload de la photo",
         "delete_error": "Erreur lors de la suppression",
         "deleted": "Supprime avec succes",
-        "conversation_deleted": "Conversation supprimee"
+        "conversation_deleted": "Conversation supprimee",
+        "fuel_added": "Plein ajoute",
+        "fuel_deleted": "Plein supprime",
+        "fuel_error": "Erreur ajout plein",
+        "tax_added": "Enregistrement ajoute",
+        "tax_deleted": "Enregistrement supprime",
+        "tax_error": "Erreur ajout enregistrement",
+        "note_added": "Note ajoutee",
+        "note_deleted": "Note supprimee",
+        "note_error": "Erreur ajout note",
+        "vehicle_shared": "Vehicule partage",
+        "share_error": "Erreur de partage",
+        "access_revoked": "Acces revoque",
+        "password_changed": "Mot de passe modifie",
+        "password_mismatch": "Les mots de passe ne correspondent pas",
+        "password_error": "Erreur changement mot de passe",
+        "language_changed": "Langue changee",
+        "vehicle_not_found": "Vehicule introuvable"
     },
     "confirm": {
         "delete_maintenance": "Supprimer cet entretien ?",
         "delete_ct": "Supprimer ce controle technique ?",
         "delete_conversation": "Supprimer cette conversation ?",
+        "delete_fuel": "Supprimer ce plein ?",
+        "delete_tax": "Supprimer cet enregistrement ?",
+        "delete_note": "Supprimer cette note ?",
+        "revoke_access": "Revoquer cet acces ?",
         "title": "Confirmation",
         "yes": "Oui",
         "no": "Non"
+    },
+    "fuel": {
+        "chart_min_records": "2 pleins minimum requis pour afficher le graphique"
     },
     "clarify": {
         "title": "Confirmer la date",

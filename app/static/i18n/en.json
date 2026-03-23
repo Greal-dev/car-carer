@@ -168,15 +168,39 @@
         "photo_upload_error": "Error uploading photo",
         "delete_error": "Error deleting",
         "deleted": "Deleted successfully",
-        "conversation_deleted": "Conversation deleted"
+        "conversation_deleted": "Conversation deleted",
+        "fuel_added": "Fuel record added",
+        "fuel_deleted": "Fuel record deleted",
+        "fuel_error": "Error adding fuel record",
+        "tax_added": "Record added",
+        "tax_deleted": "Record deleted",
+        "tax_error": "Error adding record",
+        "note_added": "Note added",
+        "note_deleted": "Note deleted",
+        "note_error": "Error adding note",
+        "vehicle_shared": "Vehicle shared",
+        "share_error": "Sharing error",
+        "access_revoked": "Access revoked",
+        "password_changed": "Password changed",
+        "password_mismatch": "Passwords do not match",
+        "password_error": "Error changing password",
+        "language_changed": "Language changed",
+        "vehicle_not_found": "Vehicle not found"
     },
     "confirm": {
         "delete_maintenance": "Delete this maintenance record?",
         "delete_ct": "Delete this MOT report?",
         "delete_conversation": "Delete this conversation?",
+        "delete_fuel": "Delete this fuel record?",
+        "delete_tax": "Delete this record?",
+        "delete_note": "Delete this note?",
+        "revoke_access": "Revoke this access?",
         "title": "Confirmation",
         "yes": "Yes",
         "no": "No"
+    },
+    "fuel": {
+        "chart_min_records": "At least 2 fill-ups required to display the chart"
     },
     "clarify": {
         "title": "Confirm date",

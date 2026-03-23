@@ -64,7 +64,7 @@
     </div>
 
     <!-- ==================== CONFIRM MODAL ==================== -->
-    <div x-show="confirmMessage" class="fixed inset-0 bg-black/50 flex items-center justify-center z-[110]" x-cloak>
+    <div x-show="confirmMessage" @keydown.escape.window="resolveConfirm(false)" class="fixed inset-0 bg-black/50 flex items-center justify-center z-[110]" x-cloak>
         <div class="bg-white rounded-xl p-6 w-full max-w-sm mx-4 shadow-xl"
              x-transition:enter="transition ease-out duration-200"
              x-transition:enter-start="opacity-0 scale-95"
@@ -380,7 +380,7 @@
                     </div>
 
                     <!-- Add Vehicle Modal -->
-                    <div x-show="showAddVehicle" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" x-cloak>
+                    <div x-show="showAddVehicle" @keydown.escape.window="showAddVehicle = false" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" x-cloak>
                         <div class="bg-white rounded-xl p-6 w-full max-w-md mx-4 shadow-xl" @click.away="showAddVehicle = false">
                             <h3 class="text-xl font-bold mb-4">Nouveau vehicule</h3>
                             <form @submit.prevent="addVehicle()">
@@ -400,7 +400,7 @@
                     </div>
 
                     <!-- Edit Vehicle Modal -->
-                    <div x-show="showEditVehicle" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" x-cloak>
+                    <div x-show="showEditVehicle" @keydown.escape.window="showEditVehicle = false" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" x-cloak>
                         <div class="bg-white rounded-xl p-6 w-full max-w-lg mx-4 shadow-xl max-h-[90vh] overflow-y-auto" @click.away="showEditVehicle = false">
                             <h3 class="text-xl font-bold mb-4">Modifier le vehicule</h3>
                             <form @submit.prevent="saveVehicle()">
@@ -907,6 +907,9 @@
                                         <h4 class="font-bold text-sm text-gray-700 mb-3">Evolution de la consommation (L/100km)</h4>
                                         <canvas x-ref="fuelChart" height="200"></canvas>
                                     </div>
+                                    <div x-show="fuelRecords.length > 0 && (!fuelStats?.records?.length)" class="text-center py-6 text-gray-400 border rounded-xl mb-6">
+                                        <p x-text="t('fuel.chart_min_records') || '2 pleins minimum requis pour afficher le graphique'"></p>
+                                    </div>
 
                                     <!-- Add button -->
                                     <div class="flex justify-between items-center mb-4">
@@ -946,7 +949,7 @@
                             </div>
 
                             <!-- Add Fuel Modal -->
-                            <div x-show="showAddFuelModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" x-cloak>
+                            <div x-show="showAddFuelModal" @keydown.escape.window="showAddFuelModal = false" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" x-cloak>
                                 <div class="bg-white rounded-xl p-6 w-full max-w-md mx-4 shadow-xl" @click.away="showAddFuelModal = false">
                                     <h3 class="text-xl font-bold mb-4">Ajouter un plein</h3>
                                     <form @submit.prevent="addFuel()">
@@ -980,7 +983,7 @@
                                         </div>
                                         <div class="flex gap-3 mt-6">
                                             <button type="button" @click="showAddFuelModal = false" class="flex-1 py-2 border rounded-lg hover:bg-gray-50 transition-all duration-200">Annuler</button>
-                                            <button type="submit" class="flex-1 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 transition-all duration-200">Ajouter</button>
+                                            <button type="submit" :disabled="addingFuel" class="flex-1 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 transition-all duration-200 disabled:opacity-50">Ajouter</button>
                                         </div>
                                     </form>
                                 </div>
@@ -1035,7 +1038,7 @@
                             </div>
 
                             <!-- Add Tax Modal -->
-                            <div x-show="showAddTaxModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" x-cloak>
+                            <div x-show="showAddTaxModal" @keydown.escape.window="showAddTaxModal = false" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" x-cloak>
                                 <div class="bg-white rounded-xl p-6 w-full max-w-md mx-4 shadow-xl" @click.away="showAddTaxModal = false">
                                     <h3 class="text-xl font-bold mb-4">Ajouter taxe / assurance</h3>
                                     <form @submit.prevent="addTaxInsurance()">
@@ -1086,7 +1089,7 @@
                                         </div>
                                         <div class="flex gap-3 mt-6">
                                             <button type="button" @click="showAddTaxModal = false" class="flex-1 py-2 border rounded-lg hover:bg-gray-50 transition-all duration-200">Annuler</button>
-                                            <button type="submit" class="flex-1 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 transition-all duration-200">Ajouter</button>
+                                            <button type="submit" :disabled="addingTax" class="flex-1 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 transition-all duration-200 disabled:opacity-50">Ajouter</button>
                                         </div>
                                     </form>
                                 </div>
@@ -1105,7 +1108,7 @@
                                     <div class="mb-4">
                                         <div class="flex gap-2">
                                             <textarea x-model="newNoteContent" placeholder="Ajouter une note..." rows="2" class="flex-1 border rounded-lg px-3 py-2 text-sm transition-all duration-200 focus:ring-2 focus:ring-brand-500 resize-none"></textarea>
-                                            <button @click="addNote()" :disabled="!newNoteContent.trim()" class="bg-brand-600 text-white px-4 rounded-lg hover:bg-brand-700 transition-all duration-200 disabled:opacity-50 text-sm self-end py-2">
+                                            <button @click="addNote()" :disabled="!newNoteContent.trim() || addingNote" class="bg-brand-600 text-white px-4 rounded-lg hover:bg-brand-700 transition-all duration-200 disabled:opacity-50 text-sm self-end py-2">
                                                 Ajouter
                                             </button>
                                         </div>
@@ -1267,19 +1270,21 @@
                                     </div>
 
                                     <!-- Invite form (only for owner/editor) -->
-                                    <div x-show="getCurrentUserRole() === 'owner' || getCurrentUserRole() === 'editor'" class="border rounded-lg p-4 mb-6 bg-gray-50">
-                                        <h4 class="font-bold text-gray-700 mb-3">Inviter quelqu'un</h4>
-                                        <form @submit.prevent="shareVehicle()" class="flex flex-col sm:flex-row gap-2">
-                                            <input x-model="shareEmail" type="email" required placeholder="email@exemple.com" class="flex-1 border rounded-lg px-3 py-2 text-sm transition-all duration-200 focus:ring-2 focus:ring-brand-500">
-                                            <select x-model="shareRole" class="border rounded-lg px-3 py-2 text-sm">
-                                                <option value="viewer">Lecteur</option>
-                                                <option value="editor">Editeur</option>
-                                            </select>
-                                            <button type="submit" :disabled="!shareEmail.trim()" class="bg-brand-600 text-white px-4 py-2 rounded-lg hover:bg-brand-700 transition-all duration-200 text-sm disabled:opacity-50 whitespace-nowrap">
-                                                Partager
-                                            </button>
-                                        </form>
-                                    </div>
+                                    <template x-if="getCurrentUserRole() === 'owner' || getCurrentUserRole() === 'editor'">
+                                        <div class="border rounded-lg p-4 mb-6 bg-gray-50">
+                                            <h4 class="font-bold text-gray-700 mb-3">Inviter quelqu'un</h4>
+                                            <form @submit.prevent="shareVehicle()" class="flex flex-col sm:flex-row gap-2">
+                                                <input x-model="shareEmail" type="email" required placeholder="email@exemple.com" class="flex-1 border rounded-lg px-3 py-2 text-sm transition-all duration-200 focus:ring-2 focus:ring-brand-500">
+                                                <select x-model="shareRole" class="border rounded-lg px-3 py-2 text-sm">
+                                                    <option value="viewer">Lecteur</option>
+                                                    <option value="editor">Editeur</option>
+                                                </select>
+                                                <button type="submit" :disabled="!shareEmail.trim() || sharing" class="bg-brand-600 text-white px-4 py-2 rounded-lg hover:bg-brand-700 transition-all duration-200 text-sm disabled:opacity-50 whitespace-nowrap">
+                                                    Partager
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </template>
 
                                     <!-- Access list -->
                                     <h4 class="font-bold text-gray-700 mb-3">Personnes ayant acces</h4>
@@ -1373,7 +1378,7 @@
                             <template x-for="msg in chatMessages" :key="msg.id">
                                 <div :class="msg.role === 'user' ? 'flex justify-end' : 'flex justify-start'">
                                     <div :class="msg.role === 'user' ? 'bg-brand-600 text-white' : 'bg-gray-100 text-gray-800'" class="max-w-[85%] md:max-w-[75%] rounded-2xl px-4 py-3">
-                                        <div class="text-sm whitespace-pre-wrap" x-html="msg.role === 'assistant' ? formatMarkdown(msg.content) : msg.content"></div>
+                                        <div class="text-sm whitespace-pre-wrap" x-html="formatMarkdown(msg.content)"></div>
                                         <div class="text-xs mt-1 opacity-60" x-text="new Date(msg.created_at).toLocaleTimeString('fr-FR', {hour: '2-digit', minute: '2-digit'})"></div>
                                     </div>
                                 </div>
@@ -1433,7 +1438,7 @@
                                         <label class="block text-sm font-medium text-gray-700 mb-1">Confirmer le nouveau mot de passe</label>
                                         <input x-model="changePasswordForm.confirm" type="password" required minlength="6" class="w-full border rounded-lg px-3 py-2 transition-all duration-200 focus:ring-2 focus:ring-brand-500">
                                     </div>
-                                    <button type="submit" class="bg-brand-600 text-white px-6 py-2 rounded-lg hover:bg-brand-700 transition-all duration-200 text-sm">
+                                    <button type="submit" :disabled="changingPassword" class="bg-brand-600 text-white px-6 py-2 rounded-lg hover:bg-brand-700 transition-all duration-200 text-sm disabled:opacity-50">
                                         Modifier le mot de passe
                                     </button>
                                 </form>
@@ -1483,7 +1488,7 @@
                 </div>
 
                 <!-- Date Clarification Modal -->
-                <div x-show="showClarifyModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" x-cloak>
+                <div x-show="showClarifyModal" @keydown.escape.window="showClarifyModal = false" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" x-cloak>
                     <div class="bg-white rounded-xl p-6 w-full max-w-md mx-4 shadow-xl" @click.away="showClarifyModal = false">
                         <div class="flex items-center gap-2 mb-4">
                             <svg class="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>

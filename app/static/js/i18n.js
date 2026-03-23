@@ -12,9 +12,11 @@ const I18N = {
             if (res.ok) {
                 this.translations[locale] = await res.json();
                 this.currentLocale = locale;
+            } else {
+                console.warn(`i18n: ${locale} not found, keeping ${this.currentLocale}`);
             }
         } catch (e) {
-            console.warn(`i18n: failed to load ${locale}`);
+            console.warn(`i18n: load error for ${locale}, keeping ${this.currentLocale}`);
         }
     },
 

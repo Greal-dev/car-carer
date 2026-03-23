@@ -12,8 +12,8 @@ class MaintenanceEvent(Base):
     __tablename__ = "maintenance_events"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    vehicle_id: Mapped[int] = mapped_column(ForeignKey("vehicles.id"), index=True)
-    document_id: Mapped[Optional[int]] = mapped_column(ForeignKey("documents.id"), nullable=True)
+    vehicle_id: Mapped[int] = mapped_column(ForeignKey("vehicles.id", ondelete="CASCADE"), index=True)
+    document_id: Mapped[Optional[int]] = mapped_column(ForeignKey("documents.id", ondelete="SET NULL"), nullable=True)
     date: Mapped[date] = mapped_column(Date)
     mileage: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     garage_name: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)

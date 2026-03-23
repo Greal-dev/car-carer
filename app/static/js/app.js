@@ -104,6 +104,13 @@ function app() {
         shareRole: 'viewer',
         sharedWithMe: [],
 
+        // Double-submit prevention flags
+        addingFuel: false,
+        addingTax: false,
+        addingNote: false,
+        sharing: false,
+        changingPassword: false,
+
         // Settings
         settingsView: 'profile',
         changePasswordForm: { current: '', new_password: '', confirm: '' },
@@ -843,24 +850,32 @@ function app() {
 
         // --- Fuel ---
         async loadFuel() {
-            if (!this.selectedVehicle) return;
+            if (!this.selectedVehicle?.id) return;
             this.fuelLoading = true;
             try {
                 const [recRes, statsRes] = await Promise.all([
                     safeFetch(`/api/vehicles/${this.selectedVehicle.id}/fuel`),
                     safeFetch(`/api/vehicles/${this.selectedVehicle.id}/fuel/stats`),
                 ]);
+                if (!this.selectedVehicle) return;
+                if (recRes.status === 404 || statsRes.status === 404) {
+                    this.selectedVehicle = null;
+                    this.showToast(this.t('toasts.vehicle_not_found'), 'warning');
+                    return;
+                }
                 if (recRes.ok) this.fuelRecords = await recRes.json();
                 if (statsRes.ok) this.fuelStats = await statsRes.json();
             } catch (e) {
                 console.error('Erreur chargement carburant:', e.message);
+            } finally {
+                this.fuelLoading = false;
             }
-            this.fuelLoading = false;
             this.$nextTick(() => this.renderFuelChart());
         },
 
         async addFuel() {
-            if (!this.selectedVehicle) return;
+            if (!this.selectedVehicle || this.addingFuel) return;
+            this.addingFuel = true;
             const body = {
                 date: this.newFuel.date,
                 mileage: parseInt(this.newFuel.mileage) || 0,
@@ -876,32 +891,34 @@ function app() {
                     body: JSON.stringify(body),
                 });
                 if (res.ok) {
-                    this.showAddFuelModal = false;
                     this.newFuel = { date: '', mileage: '', liters: '', price_total: '', station_name: '', is_full_tank: true };
-                    this.showToast('Plein ajoute', 'success');
+                    this.showToast(this.t('toasts.fuel_added'), 'success');
+                    this.showAddFuelModal = false;
                     await this.loadFuel();
                 } else {
                     const data = await res.json();
-                    this.showToast(data.detail || 'Erreur', 'error');
+                    this.showToast(data.detail || this.t('toasts.fuel_error'), 'error');
                 }
             } catch (e) {
-                this.showToast('Erreur: ' + e.message, 'error');
+                this.showToast(this.t('toasts.network_error', { message: e.message }), 'error');
+            } finally {
+                this.addingFuel = false;
             }
         },
 
         async deleteFuel(id) {
-            const confirmed = await this.showConfirm('Supprimer ce plein ?');
+            const confirmed = await this.showConfirm(this.t('confirm.delete_fuel'));
             if (!confirmed) return;
             try {
                 const res = await safeFetch(`/api/vehicles/${this.selectedVehicle.id}/fuel/${id}`, { method: 'DELETE' });
                 if (res.ok) {
-                    this.showToast('Plein supprime', 'success');
+                    this.showToast(this.t('toasts.fuel_deleted'), 'success');
                     await this.loadFuel();
                 } else {
-                    this.showToast('Erreur suppression', 'error');
+                    this.showToast(this.t('toasts.delete_error'), 'error');
                 }
             } catch (e) {
-                this.showToast('Erreur: ' + e.message, 'error');
+                this.showToast(this.t('toasts.network_error', { message: e.message }), 'error');
             }
         },
 
@@ -935,19 +952,27 @@ function app() {
 
         // --- Tax/Insurance ---
         async loadTaxInsurance() {
-            if (!this.selectedVehicle) return;
+            if (!this.selectedVehicle?.id) return;
             this.taxLoading = true;
             try {
                 const res = await safeFetch(`/api/vehicles/${this.selectedVehicle.id}/tax-insurance`);
+                if (!this.selectedVehicle) return;
+                if (res.status === 404) {
+                    this.selectedVehicle = null;
+                    this.showToast(this.t('toasts.vehicle_not_found'), 'warning');
+                    return;
+                }
                 if (res.ok) this.taxRecords = await res.json();
             } catch (e) {
                 console.error('Erreur chargement taxes:', e.message);
+            } finally {
+                this.taxLoading = false;
             }
-            this.taxLoading = false;
         },
 
         async addTaxInsurance() {
-            if (!this.selectedVehicle) return;
+            if (!this.selectedVehicle || this.addingTax) return;
+            this.addingTax = true;
             const body = {
                 record_type: this.newTax.record_type,
                 name: this.newTax.name,
@@ -964,32 +989,34 @@ function app() {
                     body: JSON.stringify(body),
                 });
                 if (res.ok) {
-                    this.showAddTaxModal = false;
                     this.newTax = { record_type: 'insurance', name: '', provider: '', date: '', cost: '', next_renewal_date: '', renewal_frequency: 'annual' };
-                    this.showToast('Enregistrement ajoute', 'success');
+                    this.showToast(this.t('toasts.tax_added'), 'success');
+                    this.showAddTaxModal = false;
                     await this.loadTaxInsurance();
                 } else {
                     const data = await res.json();
-                    this.showToast(data.detail || 'Erreur', 'error');
+                    this.showToast(data.detail || this.t('toasts.tax_error'), 'error');
                 }
             } catch (e) {
-                this.showToast('Erreur: ' + e.message, 'error');
+                this.showToast(this.t('toasts.network_error', { message: e.message }), 'error');
+            } finally {
+                this.addingTax = false;
             }
         },
 
         async deleteTaxInsurance(id) {
-            const confirmed = await this.showConfirm('Supprimer cet enregistrement ?');
+            const confirmed = await this.showConfirm(this.t('confirm.delete_tax'));
             if (!confirmed) return;
             try {
                 const res = await safeFetch(`/api/vehicles/${this.selectedVehicle.id}/tax-insurance/${id}`, { method: 'DELETE' });
                 if (res.ok) {
-                    this.showToast('Supprime', 'success');
+                    this.showToast(this.t('toasts.tax_deleted'), 'success');
                     await this.loadTaxInsurance();
                 } else {
-                    this.showToast('Erreur suppression', 'error');
+                    this.showToast(this.t('toasts.delete_error'), 'error');
                 }
             } catch (e) {
-                this.showToast('Erreur: ' + e.message, 'error');
+                this.showToast(this.t('toasts.network_error', { message: e.message }), 'error');
             }
         },
 
@@ -1020,21 +1047,29 @@ function app() {
 
         // --- Notes ---
         async loadNotes() {
-            if (!this.selectedVehicle) return;
+            if (!this.selectedVehicle?.id) return;
             this.notesLoading = true;
             try {
                 const params = new URLSearchParams();
                 if (this.notesSearch) params.set('q', this.notesSearch);
                 const res = await safeFetch(`/api/vehicles/${this.selectedVehicle.id}/notes?${params}`);
+                if (!this.selectedVehicle) return;
+                if (res.status === 404) {
+                    this.selectedVehicle = null;
+                    this.showToast(this.t('toasts.vehicle_not_found'), 'warning');
+                    return;
+                }
                 if (res.ok) this.vehicleNotes = await res.json();
             } catch (e) {
                 console.error('Erreur chargement notes:', e.message);
+            } finally {
+                this.notesLoading = false;
             }
-            this.notesLoading = false;
         },
 
         async addNote() {
-            if (!this.selectedVehicle || !this.newNoteContent.trim()) return;
+            if (!this.selectedVehicle || !this.newNoteContent.trim() || this.addingNote) return;
+            this.addingNote = true;
             try {
                 const res = await safeFetch(`/api/vehicles/${this.selectedVehicle.id}/notes`, {
                     method: 'POST',
@@ -1043,13 +1078,15 @@ function app() {
                 });
                 if (res.ok) {
                     this.newNoteContent = '';
-                    this.showToast('Note ajoutee', 'success');
+                    this.showToast(this.t('toasts.note_added'), 'success');
                     await this.loadNotes();
                 } else {
-                    this.showToast('Erreur ajout note', 'error');
+                    this.showToast(this.t('toasts.note_error'), 'error');
                 }
             } catch (e) {
-                this.showToast('Erreur: ' + e.message, 'error');
+                this.showToast(this.t('toasts.network_error', { message: e.message }), 'error');
+            } finally {
+                this.addingNote = false;
             }
         },
 
@@ -1062,41 +1099,49 @@ function app() {
                 });
                 if (res.ok) await this.loadNotes();
             } catch (e) {
-                this.showToast('Erreur: ' + e.message, 'error');
+                this.showToast(this.t('toasts.network_error', { message: e.message }), 'error');
             }
         },
 
         async deleteNote(id) {
-            const confirmed = await this.showConfirm('Supprimer cette note ?');
+            const confirmed = await this.showConfirm(this.t('confirm.delete_note'));
             if (!confirmed) return;
             try {
                 const res = await safeFetch(`/api/vehicles/${this.selectedVehicle.id}/notes/${id}`, { method: 'DELETE' });
                 if (res.ok) {
-                    this.showToast('Note supprimee', 'success');
+                    this.showToast(this.t('toasts.note_deleted'), 'success');
                     await this.loadNotes();
                 } else {
-                    this.showToast('Erreur suppression', 'error');
+                    this.showToast(this.t('toasts.delete_error'), 'error');
                 }
             } catch (e) {
-                this.showToast('Erreur: ' + e.message, 'error');
+                this.showToast(this.t('toasts.network_error', { message: e.message }), 'error');
             }
         },
 
         // --- Access / Sharing ---
         async loadAccess() {
-            if (!this.selectedVehicle) return;
+            if (!this.selectedVehicle?.id) return;
             this.accessLoading = true;
             try {
                 const res = await safeFetch(`/api/vehicles/${this.selectedVehicle.id}/access`);
+                if (!this.selectedVehicle) return;
+                if (res.status === 404) {
+                    this.selectedVehicle = null;
+                    this.showToast(this.t('toasts.vehicle_not_found'), 'warning');
+                    return;
+                }
                 if (res.ok) this.vehicleAccess = await res.json();
             } catch (e) {
                 console.error('Erreur chargement acces:', e.message);
+            } finally {
+                this.accessLoading = false;
             }
-            this.accessLoading = false;
         },
 
         async shareVehicle() {
-            if (!this.selectedVehicle || !this.shareEmail.trim()) return;
+            if (!this.selectedVehicle || !this.shareEmail.trim() || this.sharing) return;
+            this.sharing = true;
             try {
                 const res = await safeFetch(`/api/vehicles/${this.selectedVehicle.id}/share`, {
                     method: 'POST',
@@ -1105,30 +1150,32 @@ function app() {
                 });
                 if (res.ok) {
                     this.shareEmail = '';
-                    this.showToast('Vehicule partage', 'success');
+                    this.showToast(this.t('toasts.vehicle_shared'), 'success');
                     await this.loadAccess();
                 } else {
                     const data = await res.json();
-                    this.showToast(data.detail || 'Erreur partage', 'error');
+                    this.showToast(data.detail || this.t('toasts.share_error'), 'error');
                 }
             } catch (e) {
-                this.showToast('Erreur: ' + e.message, 'error');
+                this.showToast(this.t('toasts.network_error', { message: e.message }), 'error');
+            } finally {
+                this.sharing = false;
             }
         },
 
         async revokeAccess(accessId) {
-            const confirmed = await this.showConfirm('Revoquer cet acces ?');
+            const confirmed = await this.showConfirm(this.t('confirm.revoke_access'));
             if (!confirmed) return;
             try {
                 const res = await safeFetch(`/api/vehicles/${this.selectedVehicle.id}/access/${accessId}`, { method: 'DELETE' });
                 if (res.ok) {
-                    this.showToast('Acces revoque', 'success');
+                    this.showToast(this.t('toasts.access_revoked'), 'success');
                     await this.loadAccess();
                 } else {
-                    this.showToast('Erreur', 'error');
+                    this.showToast(this.t('toasts.delete_error'), 'error');
                 }
             } catch (e) {
-                this.showToast('Erreur: ' + e.message, 'error');
+                this.showToast(this.t('toasts.network_error', { message: e.message }), 'error');
             }
         },
 
@@ -1151,9 +1198,11 @@ function app() {
         // --- Settings ---
         async changePassword() {
             if (this.changePasswordForm.new_password !== this.changePasswordForm.confirm) {
-                this.showToast('Les mots de passe ne correspondent pas', 'error');
+                this.showToast(this.t('toasts.password_mismatch'), 'error');
                 return;
             }
+            if (this.changingPassword) return;
+            this.changingPassword = true;
             try {
                 const res = await safeFetch('/api/auth/change-password', {
                     method: 'POST',
@@ -1165,13 +1214,15 @@ function app() {
                 });
                 if (res.ok) {
                     this.changePasswordForm = { current: '', new_password: '', confirm: '' };
-                    this.showToast('Mot de passe modifie', 'success');
+                    this.showToast(this.t('toasts.password_changed'), 'success');
                 } else {
                     const data = await res.json();
-                    this.showToast(data.detail || 'Erreur changement mot de passe', 'error');
+                    this.showToast(data.detail || this.t('toasts.password_error'), 'error');
                 }
             } catch (e) {
-                this.showToast('Erreur: ' + e.message, 'error');
+                this.showToast(this.t('toasts.network_error', { message: e.message }), 'error');
+            } finally {
+                this.changingPassword = false;
             }
         },
 
@@ -1179,7 +1230,7 @@ function app() {
             await I18N.loadLocale(locale);
             this.t = (key, params) => I18N.t(key, params);
             localStorage.setItem('locale', locale);
-            this.showToast('Langue changee', 'success');
+            this.showToast(this.t('toasts.language_changed'), 'success');
         },
     };
 }

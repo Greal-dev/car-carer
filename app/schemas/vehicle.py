@@ -1,29 +1,29 @@
 from datetime import date, datetime
 from typing import Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class VehicleCreate(BaseModel):
-    name: str
-    brand: Optional[str] = None
-    model: Optional[str] = None
-    year: Optional[int] = None
-    plate_number: Optional[str] = None
-    vin: Optional[str] = None
-    fuel_type: Optional[str] = None
-    initial_mileage: Optional[int] = None
+    name: str = Field(..., min_length=1, max_length=255)
+    brand: Optional[str] = Field(None, max_length=100)
+    model: Optional[str] = Field(None, max_length=100)
+    year: Optional[int] = Field(None, ge=1886, le=2030)
+    plate_number: Optional[str] = Field(None, max_length=20)
+    vin: Optional[str] = Field(None, max_length=17)
+    fuel_type: Optional[str] = Field(None, max_length=50)
+    initial_mileage: Optional[int] = Field(None, ge=0)
     purchase_date: Optional[date] = None
 
 
 class VehicleUpdate(BaseModel):
-    name: Optional[str] = None
-    brand: Optional[str] = None
-    model: Optional[str] = None
-    year: Optional[int] = None
-    plate_number: Optional[str] = None
-    vin: Optional[str] = None
-    fuel_type: Optional[str] = None
-    initial_mileage: Optional[int] = None
+    name: Optional[str] = Field(None, min_length=1, max_length=255)
+    brand: Optional[str] = Field(None, max_length=100)
+    model: Optional[str] = Field(None, max_length=100)
+    year: Optional[int] = Field(None, ge=1886, le=2030)
+    plate_number: Optional[str] = Field(None, max_length=20)
+    vin: Optional[str] = Field(None, max_length=17)
+    fuel_type: Optional[str] = Field(None, max_length=50)
+    initial_mileage: Optional[int] = Field(None, ge=0)
     purchase_date: Optional[date] = None
 
 
@@ -58,5 +58,3 @@ class VehicleSummary(BaseModel):
     ct_count: int
 
     model_config = {"from_attributes": True}
-
-

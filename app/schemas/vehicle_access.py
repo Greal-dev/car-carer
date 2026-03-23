@@ -1,15 +1,17 @@
 from datetime import datetime
 from typing import Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+
+from app.enums import VehicleRole
 
 
 class VehicleAccessCreate(BaseModel):
     user_id: int
-    role: str  # "owner", "editor", "viewer"
+    role: VehicleRole
 
 
 class VehicleAccessUpdate(BaseModel):
-    role: str  # "owner", "editor", "viewer"
+    role: VehicleRole
 
 
 class VehicleAccessOut(BaseModel):

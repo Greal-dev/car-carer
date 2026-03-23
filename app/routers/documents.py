@@ -21,6 +21,7 @@ from app.schemas.maintenance import MaintenanceEventOut
 from app.schemas.ct_report import CTReportOut
 from app.services.extraction import extract_document
 from app.routers.auth import get_current_user
+from app.routers.vehicles import _get_vehicle_or_404
 
 logger = logging.getLogger(__name__)
 
@@ -50,9 +51,7 @@ async def upload_and_extract(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    vehicle = db.get(Vehicle, vehicle_id)
-    if not vehicle or (vehicle.user_id and vehicle.user_id != user.id):
-        raise HTTPException(404, "Vehicule non trouve")
+    vehicle = _get_vehicle_or_404(vehicle_id, user, db, require_role="editor")
 
     mime = file.content_type or "application/octet-stream"
     if mime not in ALLOWED_MIME:
@@ -133,10 +132,8 @@ def confirm_document_date(
     if not doc:
         raise HTTPException(404, "Document non trouve")
 
-    # Verify the user owns the vehicle associated with this document
-    vehicle = db.get(Vehicle, doc.vehicle_id)
-    if not vehicle or (vehicle.user_id and vehicle.user_id != user.id):
-        raise HTTPException(404, "Document non trouve")
+    # Verify the user has access to the vehicle associated with this document
+    vehicle = _get_vehicle_or_404(doc.vehicle_id, user, db, require_role="editor")
 
     if doc.extracted:
         raise HTTPException(400, "Document deja finalise")
@@ -166,9 +163,7 @@ async def batch_upload(
     if len(files) > settings.batch_max_files:
         raise HTTPException(413, "Trop de fichiers (max 100)")
 
-    vehicle = db.get(Vehicle, vehicle_id)
-    if not vehicle or (vehicle.user_id and vehicle.user_id != user.id):
-        raise HTTPException(404, "Vehicule non trouve")
+    vehicle = _get_vehicle_or_404(vehicle_id, user, db, require_role="editor")
 
     batch_id = uuid.uuid4().hex[:12]
     saved_files = []
@@ -395,6 +390,7 @@ async def batch_status_sse(batch_id: str):
 @router.get("/pending/{vehicle_id}")
 def list_pending_documents(vehicle_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """List documents that need date clarification (extracted=False with extraction_raw)."""
+    _get_vehicle_or_404(vehicle_id, user, db)
     docs = (
         db.query(Document)
         .filter(
@@ -686,6 +682,7 @@ def _create_tax_insurance_record(db: Session, vehicle_id: int, doc_id: int, data
 
 @router.get("/{vehicle_id}", response_model=list[DocumentOut])
 def list_documents(vehicle_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    _get_vehicle_or_404(vehicle_id, user, db)
     return (
         db.query(Document)
         .filter(Document.vehicle_id == vehicle_id)
@@ -696,6 +693,7 @@ def list_documents(vehicle_id: int, user: User = Depends(get_current_user), db: 
 
 @router.get("/{vehicle_id}/maintenance", response_model=list[MaintenanceEventOut])
 def list_maintenance(vehicle_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    _get_vehicle_or_404(vehicle_id, user, db)
     from sqlalchemy.orm import joinedload
     return (
         db.query(MaintenanceEvent)
@@ -708,6 +706,7 @@ def list_maintenance(vehicle_id: int, user: User = Depends(get_current_user), db
 
 @router.get("/{vehicle_id}/ct-reports", response_model=list[CTReportOut])
 def list_ct_reports(vehicle_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    _get_vehicle_or_404(vehicle_id, user, db)
     from sqlalchemy.orm import joinedload
     return (
         db.query(CTReport)
