@@ -6,7 +6,7 @@ pydantic-settings==2.7.1
 python-multipart==0.0.20
 anthropic==0.44.0
 httpx>=0.28.0
-Pillow==11.1.0
+Pillow==12.1.1
 PyMuPDF==1.25.3
 python-dotenv==1.0.1
 aiofiles==24.1.0
