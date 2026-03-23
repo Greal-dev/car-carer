@@ -78,6 +78,36 @@ function app() {
         // Sprint 8: Dark mode, VIN decoder
         darkMode: localStorage.getItem('darkMode') === 'true',
 
+        // Fuel
+        fuelRecords: [],
+        fuelStats: null,
+        fuelLoading: false,
+        showAddFuelModal: false,
+        newFuel: { date: '', mileage: '', liters: '', price_total: '', station_name: '', is_full_tank: true },
+
+        // Tax/Insurance
+        taxRecords: [],
+        taxLoading: false,
+        showAddTaxModal: false,
+        newTax: { record_type: 'insurance', name: '', provider: '', date: '', cost: '', next_renewal_date: '', renewal_frequency: 'annual' },
+
+        // Notes
+        vehicleNotes: [],
+        notesLoading: false,
+        newNoteContent: '',
+        notesSearch: '',
+
+        // Access/Sharing
+        vehicleAccess: [],
+        accessLoading: false,
+        shareEmail: '',
+        shareRole: 'viewer',
+        sharedWithMe: [],
+
+        // Settings
+        settingsView: 'profile',
+        changePasswordForm: { current: '', new_password: '', confirm: '' },
+
         // Chat state
         chatVehicleId: null,
         conversations: [],
@@ -809,6 +839,347 @@ function app() {
                 });
             }
             return html;
+        },
+
+        // --- Fuel ---
+        async loadFuel() {
+            if (!this.selectedVehicle) return;
+            this.fuelLoading = true;
+            try {
+                const [recRes, statsRes] = await Promise.all([
+                    safeFetch(`/api/vehicles/${this.selectedVehicle.id}/fuel`),
+                    safeFetch(`/api/vehicles/${this.selectedVehicle.id}/fuel/stats`),
+                ]);
+                if (recRes.ok) this.fuelRecords = await recRes.json();
+                if (statsRes.ok) this.fuelStats = await statsRes.json();
+            } catch (e) {
+                console.error('Erreur chargement carburant:', e.message);
+            }
+            this.fuelLoading = false;
+            this.$nextTick(() => this.renderFuelChart());
+        },
+
+        async addFuel() {
+            if (!this.selectedVehicle) return;
+            const body = {
+                date: this.newFuel.date,
+                mileage: parseInt(this.newFuel.mileage) || 0,
+                liters: parseFloat(this.newFuel.liters) || 0,
+                price_total: parseFloat(this.newFuel.price_total) || 0,
+                station_name: this.newFuel.station_name || null,
+                is_full_tank: this.newFuel.is_full_tank,
+            };
+            try {
+                const res = await safeFetch(`/api/vehicles/${this.selectedVehicle.id}/fuel`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body),
+                });
+                if (res.ok) {
+                    this.showAddFuelModal = false;
+                    this.newFuel = { date: '', mileage: '', liters: '', price_total: '', station_name: '', is_full_tank: true };
+                    this.showToast('Plein ajoute', 'success');
+                    await this.loadFuel();
+                } else {
+                    const data = await res.json();
+                    this.showToast(data.detail || 'Erreur', 'error');
+                }
+            } catch (e) {
+                this.showToast('Erreur: ' + e.message, 'error');
+            }
+        },
+
+        async deleteFuel(id) {
+            const confirmed = await this.showConfirm('Supprimer ce plein ?');
+            if (!confirmed) return;
+            try {
+                const res = await safeFetch(`/api/vehicles/${this.selectedVehicle.id}/fuel/${id}`, { method: 'DELETE' });
+                if (res.ok) {
+                    this.showToast('Plein supprime', 'success');
+                    await this.loadFuel();
+                } else {
+                    this.showToast('Erreur suppression', 'error');
+                }
+            } catch (e) {
+                this.showToast('Erreur: ' + e.message, 'error');
+            }
+        },
+
+        renderFuelChart() {
+            const ctx = this.$refs.fuelChart;
+            if (!ctx || !this.fuelStats?.records?.length) return;
+            if (ctx._chart) ctx._chart.destroy();
+            const records = this.fuelStats.records.filter(r => r.consumption != null);
+            if (records.length === 0) return;
+            ctx._chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: records.map(r => r.date),
+                    datasets: [{
+                        label: 'L/100km',
+                        data: records.map(r => r.consumption),
+                        borderColor: '#f59e0b',
+                        backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                        fill: true,
+                        tension: 0.3,
+                        pointBackgroundColor: '#f59e0b',
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: false, title: { display: true, text: 'L/100km' } } }
+                }
+            });
+        },
+
+        // --- Tax/Insurance ---
+        async loadTaxInsurance() {
+            if (!this.selectedVehicle) return;
+            this.taxLoading = true;
+            try {
+                const res = await safeFetch(`/api/vehicles/${this.selectedVehicle.id}/tax-insurance`);
+                if (res.ok) this.taxRecords = await res.json();
+            } catch (e) {
+                console.error('Erreur chargement taxes:', e.message);
+            }
+            this.taxLoading = false;
+        },
+
+        async addTaxInsurance() {
+            if (!this.selectedVehicle) return;
+            const body = {
+                record_type: this.newTax.record_type,
+                name: this.newTax.name,
+                provider: this.newTax.provider || null,
+                date: this.newTax.date,
+                cost: parseFloat(this.newTax.cost) || 0,
+                next_renewal_date: this.newTax.next_renewal_date || null,
+                renewal_frequency: this.newTax.renewal_frequency || null,
+            };
+            try {
+                const res = await safeFetch(`/api/vehicles/${this.selectedVehicle.id}/tax-insurance`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body),
+                });
+                if (res.ok) {
+                    this.showAddTaxModal = false;
+                    this.newTax = { record_type: 'insurance', name: '', provider: '', date: '', cost: '', next_renewal_date: '', renewal_frequency: 'annual' };
+                    this.showToast('Enregistrement ajoute', 'success');
+                    await this.loadTaxInsurance();
+                } else {
+                    const data = await res.json();
+                    this.showToast(data.detail || 'Erreur', 'error');
+                }
+            } catch (e) {
+                this.showToast('Erreur: ' + e.message, 'error');
+            }
+        },
+
+        async deleteTaxInsurance(id) {
+            const confirmed = await this.showConfirm('Supprimer cet enregistrement ?');
+            if (!confirmed) return;
+            try {
+                const res = await safeFetch(`/api/vehicles/${this.selectedVehicle.id}/tax-insurance/${id}`, { method: 'DELETE' });
+                if (res.ok) {
+                    this.showToast('Supprime', 'success');
+                    await this.loadTaxInsurance();
+                } else {
+                    this.showToast('Erreur suppression', 'error');
+                }
+            } catch (e) {
+                this.showToast('Erreur: ' + e.message, 'error');
+            }
+        },
+
+        getTaxStatus(record) {
+            if (!record.next_renewal_date) return 'unknown';
+            const now = new Date();
+            const renewal = new Date(record.next_renewal_date);
+            const diffDays = (renewal - now) / (1000 * 60 * 60 * 24);
+            if (diffDays < 0) return 'expired';
+            if (diffDays < 30) return 'expiring';
+            return 'valid';
+        },
+
+        getTaxStatusLabel(record) {
+            const s = this.getTaxStatus(record);
+            return { valid: 'Valide', expiring: 'Bientot', expired: 'Expire', unknown: '—' }[s] || '—';
+        },
+
+        getTaxStatusClass(record) {
+            const s = this.getTaxStatus(record);
+            return {
+                valid: 'bg-green-100 text-green-700 border-green-200',
+                expiring: 'bg-orange-100 text-orange-700 border-orange-200',
+                expired: 'bg-red-100 text-red-700 border-red-200',
+                unknown: 'bg-gray-100 text-gray-500 border-gray-200',
+            }[s] || 'bg-gray-100 text-gray-500';
+        },
+
+        // --- Notes ---
+        async loadNotes() {
+            if (!this.selectedVehicle) return;
+            this.notesLoading = true;
+            try {
+                const params = new URLSearchParams();
+                if (this.notesSearch) params.set('q', this.notesSearch);
+                const res = await safeFetch(`/api/vehicles/${this.selectedVehicle.id}/notes?${params}`);
+                if (res.ok) this.vehicleNotes = await res.json();
+            } catch (e) {
+                console.error('Erreur chargement notes:', e.message);
+            }
+            this.notesLoading = false;
+        },
+
+        async addNote() {
+            if (!this.selectedVehicle || !this.newNoteContent.trim()) return;
+            try {
+                const res = await safeFetch(`/api/vehicles/${this.selectedVehicle.id}/notes`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ content: this.newNoteContent.trim() }),
+                });
+                if (res.ok) {
+                    this.newNoteContent = '';
+                    this.showToast('Note ajoutee', 'success');
+                    await this.loadNotes();
+                } else {
+                    this.showToast('Erreur ajout note', 'error');
+                }
+            } catch (e) {
+                this.showToast('Erreur: ' + e.message, 'error');
+            }
+        },
+
+        async toggleNotePin(note) {
+            try {
+                const res = await safeFetch(`/api/vehicles/${this.selectedVehicle.id}/notes/${note.id}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ pinned: !note.pinned }),
+                });
+                if (res.ok) await this.loadNotes();
+            } catch (e) {
+                this.showToast('Erreur: ' + e.message, 'error');
+            }
+        },
+
+        async deleteNote(id) {
+            const confirmed = await this.showConfirm('Supprimer cette note ?');
+            if (!confirmed) return;
+            try {
+                const res = await safeFetch(`/api/vehicles/${this.selectedVehicle.id}/notes/${id}`, { method: 'DELETE' });
+                if (res.ok) {
+                    this.showToast('Note supprimee', 'success');
+                    await this.loadNotes();
+                } else {
+                    this.showToast('Erreur suppression', 'error');
+                }
+            } catch (e) {
+                this.showToast('Erreur: ' + e.message, 'error');
+            }
+        },
+
+        // --- Access / Sharing ---
+        async loadAccess() {
+            if (!this.selectedVehicle) return;
+            this.accessLoading = true;
+            try {
+                const res = await safeFetch(`/api/vehicles/${this.selectedVehicle.id}/access`);
+                if (res.ok) this.vehicleAccess = await res.json();
+            } catch (e) {
+                console.error('Erreur chargement acces:', e.message);
+            }
+            this.accessLoading = false;
+        },
+
+        async shareVehicle() {
+            if (!this.selectedVehicle || !this.shareEmail.trim()) return;
+            try {
+                const res = await safeFetch(`/api/vehicles/${this.selectedVehicle.id}/share`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: this.shareEmail.trim(), role: this.shareRole }),
+                });
+                if (res.ok) {
+                    this.shareEmail = '';
+                    this.showToast('Vehicule partage', 'success');
+                    await this.loadAccess();
+                } else {
+                    const data = await res.json();
+                    this.showToast(data.detail || 'Erreur partage', 'error');
+                }
+            } catch (e) {
+                this.showToast('Erreur: ' + e.message, 'error');
+            }
+        },
+
+        async revokeAccess(accessId) {
+            const confirmed = await this.showConfirm('Revoquer cet acces ?');
+            if (!confirmed) return;
+            try {
+                const res = await safeFetch(`/api/vehicles/${this.selectedVehicle.id}/access/${accessId}`, { method: 'DELETE' });
+                if (res.ok) {
+                    this.showToast('Acces revoque', 'success');
+                    await this.loadAccess();
+                } else {
+                    this.showToast('Erreur', 'error');
+                }
+            } catch (e) {
+                this.showToast('Erreur: ' + e.message, 'error');
+            }
+        },
+
+        async loadSharedWithMe() {
+            try {
+                const res = await safeFetch('/api/vehicles/shared-with-me');
+                if (res.ok) this.sharedWithMe = await res.json();
+            } catch (e) {
+                console.error('Erreur chargement partages:', e.message);
+            }
+        },
+
+        getCurrentUserRole() {
+            if (!this.selectedVehicle || !this.currentUser) return 'viewer';
+            if (this.selectedVehicle.owner_id === this.currentUser.id) return 'owner';
+            const access = this.vehicleAccess.find(a => a.user_id === this.currentUser.id);
+            return access?.role || 'viewer';
+        },
+
+        // --- Settings ---
+        async changePassword() {
+            if (this.changePasswordForm.new_password !== this.changePasswordForm.confirm) {
+                this.showToast('Les mots de passe ne correspondent pas', 'error');
+                return;
+            }
+            try {
+                const res = await safeFetch('/api/auth/change-password', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        current_password: this.changePasswordForm.current,
+                        new_password: this.changePasswordForm.new_password,
+                    }),
+                });
+                if (res.ok) {
+                    this.changePasswordForm = { current: '', new_password: '', confirm: '' };
+                    this.showToast('Mot de passe modifie', 'success');
+                } else {
+                    const data = await res.json();
+                    this.showToast(data.detail || 'Erreur changement mot de passe', 'error');
+                }
+            } catch (e) {
+                this.showToast('Erreur: ' + e.message, 'error');
+            }
+        },
+
+        async changeLocale(locale) {
+            await I18N.loadLocale(locale);
+            this.t = (key, params) => I18N.t(key, params);
+            localStorage.setItem('locale', locale);
+            this.showToast('Langue changee', 'success');
         },
     };
 }

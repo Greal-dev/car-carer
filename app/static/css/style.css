@@ -124,3 +124,12 @@ input:focus, select:focus, textarea:focus {
 .dark .upload-type-btn.active { background-color: #0ea5e9; color: white; border-color: #0ea5e9; }
 /* Dark mode toast */
 .dark .toast-container > div { box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
+
+/* Scrollbar hide for horizontal tab scroll */
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+
+/* Note pin animation */
+.pin-active { color: #f59e0b; }
+.pin-inactive { color: #d1d5db; }
+.pin-inactive:hover { color: #f59e0b; }

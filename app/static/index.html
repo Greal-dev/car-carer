@@ -163,6 +163,9 @@
                             <button @click="view = 'dashboard'; loadDashboard()" :class="view === 'dashboard' ? 'bg-brand-600' : 'hover:bg-brand-600/50'" :aria-selected="view === 'dashboard'" role="tab" class="px-3 py-2 rounded-lg transition-all duration-200 text-sm">Dashboard</button>
                             <button @click="view = 'vehicles'" :class="view === 'vehicles' ? 'bg-brand-600' : 'hover:bg-brand-600/50'" :aria-selected="view === 'vehicles'" role="tab" class="px-3 py-2 rounded-lg transition-all duration-200 text-sm">Vehicules</button>
                             <button @click="view = 'chat'; loadConversations()" :class="view === 'chat' ? 'bg-brand-600' : 'hover:bg-brand-600/50'" :aria-selected="view === 'chat'" role="tab" class="px-3 py-2 rounded-lg transition-all duration-200 text-sm">Chat</button>
+                            <button @click="view = 'settings'; loadSharedWithMe()" :class="view === 'settings' ? 'bg-brand-600' : 'hover:bg-brand-600/50'" :aria-selected="view === 'settings'" role="tab" class="px-3 py-2 rounded-lg transition-all duration-200 text-sm">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                            </button>
                         </nav>
                         <div class="hidden md:block h-6 w-px bg-brand-500/50"></div>
                         <div class="flex items-center gap-2">
@@ -183,6 +186,7 @@
                         <button @click="view = 'dashboard'; loadDashboard(); mobileMenuOpen = false" :class="view === 'dashboard' ? 'bg-brand-600' : ''" class="text-left px-3 py-2 rounded-lg transition-all duration-200 text-sm">Dashboard</button>
                         <button @click="view = 'vehicles'; mobileMenuOpen = false" :class="view === 'vehicles' ? 'bg-brand-600' : ''" class="text-left px-3 py-2 rounded-lg transition-all duration-200 text-sm">Vehicules</button>
                         <button @click="view = 'chat'; loadConversations(); mobileMenuOpen = false" :class="view === 'chat' ? 'bg-brand-600' : ''" class="text-left px-3 py-2 rounded-lg transition-all duration-200 text-sm">Chat</button>
+                        <button @click="view = 'settings'; loadSharedWithMe(); mobileMenuOpen = false" :class="view === 'settings' ? 'bg-brand-600' : ''" class="text-left px-3 py-2 rounded-lg transition-all duration-200 text-sm">Settings</button>
                     </nav>
                 </div>
             </header>
@@ -238,7 +242,7 @@
                         </div>
 
                         <!-- Vehicle cards -->
-                        <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
                             <template x-for="v in (dashboard?.vehicles || [])" :key="v.id">
                                 <div class="bg-white rounded-xl shadow-sm border p-5 hover:shadow-md transition-all duration-200 cursor-pointer" @click="view = 'vehicles'; $nextTick(() => { const veh = vehicles.find(x => x.id === v.id); if(veh) selectVehicle(veh); })">
                                     <div class="flex justify-between items-start mb-3">
@@ -260,6 +264,61 @@
                                     </div>
                                 </div>
                             </template>
+                        </div>
+
+                        <!-- Enriched dashboard: upcoming deadlines + fuel consumption -->
+                        <div class="grid md:grid-cols-2 gap-4">
+                            <!-- Upcoming deadlines card -->
+                            <div class="bg-white rounded-xl shadow-sm border p-5">
+                                <h3 class="font-bold text-gray-800 mb-3 flex items-center gap-2">
+                                    <svg class="w-5 h-5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                                    Prochaines echeances
+                                </h3>
+                                <div x-show="dashboard?.upcoming_deadlines?.length > 0" class="space-y-2">
+                                    <template x-for="(d, i) in (dashboard?.upcoming_deadlines || []).slice(0, 3)" :key="i">
+                                        <div class="flex items-center justify-between border rounded-lg p-3">
+                                            <div>
+                                                <p class="text-sm font-medium" x-text="d.title || d.type"></p>
+                                                <p class="text-xs text-gray-500" x-text="d.vehicle_name || ''"></p>
+                                            </div>
+                                            <div class="text-right">
+                                                <p class="text-sm font-medium" :class="d.days_remaining < 0 ? 'text-red-600' : d.days_remaining < 30 ? 'text-orange-600' : 'text-green-600'"
+                                                   x-text="d.date || ''"></p>
+                                                <p class="text-xs" :class="d.days_remaining < 0 ? 'text-red-500' : d.days_remaining < 30 ? 'text-orange-500' : 'text-gray-400'"
+                                                   x-text="d.days_remaining < 0 ? 'Expire depuis ' + Math.abs(d.days_remaining) + 'j' : d.days_remaining + 'j restants'"></p>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </div>
+                                <div x-show="!dashboard?.upcoming_deadlines?.length" class="text-sm text-gray-400 text-center py-4">
+                                    Aucune echeance a venir
+                                </div>
+                            </div>
+
+                            <!-- Fuel consumption card -->
+                            <div class="bg-white rounded-xl shadow-sm border p-5">
+                                <h3 class="font-bold text-gray-800 mb-3 flex items-center gap-2">
+                                    <svg class="w-5 h-5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                                    Consommation carburant
+                                </h3>
+                                <div x-show="dashboard?.fuel_summary" class="space-y-3">
+                                    <div class="flex items-center justify-between">
+                                        <span class="text-sm text-gray-600">Derniere consommation</span>
+                                        <span class="text-lg font-bold text-amber-600" x-text="dashboard?.fuel_summary?.last_consumption ? dashboard.fuel_summary.last_consumption.toFixed(1) + ' L/100km' : '—'"></span>
+                                    </div>
+                                    <div class="flex items-center justify-between">
+                                        <span class="text-sm text-gray-600">Moyenne</span>
+                                        <span class="text-lg font-bold text-brand-600" x-text="dashboard?.fuel_summary?.avg_consumption ? dashboard.fuel_summary.avg_consumption.toFixed(1) + ' L/100km' : '—'"></span>
+                                    </div>
+                                    <div class="flex items-center justify-between">
+                                        <span class="text-sm text-gray-600">Total depense (carburant)</span>
+                                        <span class="text-sm font-medium text-gray-700" x-text="dashboard?.fuel_summary?.total_cost ? dashboard.fuel_summary.total_cost.toFixed(0) + ' EUR' : '—'"></span>
+                                    </div>
+                                </div>
+                                <div x-show="!dashboard?.fuel_summary" class="text-sm text-gray-400 text-center py-4">
+                                    Aucune donnee carburant. Ajoutez des pleins dans l'onglet Carburant.
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -531,22 +590,26 @@
                             </div>
 
                             <!-- Tabs -->
-                            <div class="flex border-b mb-4 overflow-x-auto" role="tablist" aria-label="Onglets du vehicule">
-                                <button @click="detailTab = 'analysis'" :class="detailTab === 'analysis' ? 'border-brand-500 text-brand-600' : 'border-transparent text-gray-500'" :aria-selected="detailTab === 'analysis'" role="tab" class="px-4 py-2 border-b-2 font-medium transition-all duration-200 flex items-center gap-1 whitespace-nowrap">
+                            <div class="flex overflow-x-auto gap-1 pb-2 -mb-2 scrollbar-hide border-b mb-4" role="tablist" aria-label="Onglets du vehicule">
+                                <button @click="detailTab = 'analysis'" :class="detailTab === 'analysis' ? 'border-brand-500 text-brand-600' : 'border-transparent text-gray-500'" :aria-selected="detailTab === 'analysis'" role="tab" class="px-3 py-2 border-b-2 font-medium transition-all duration-200 flex items-center gap-1 whitespace-nowrap text-sm">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
                                     Bilan
                                     <span x-show="analysis && analysis.alerts.filter(a => (a.level === 'critical' || a.level === 'warning')).length > 0"
                                           class="ml-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center"
                                           x-text="analysis ? analysis.alerts.filter(a => a.level === 'critical' || a.level === 'warning').length : ''"></span>
                                 </button>
-                                <button @click="detailTab = 'maintenance'" :class="detailTab === 'maintenance' ? 'border-brand-500 text-brand-600' : 'border-transparent text-gray-500'" :aria-selected="detailTab === 'maintenance'" role="tab" class="px-4 py-2 border-b-2 font-medium transition-all duration-200 whitespace-nowrap">Entretiens</button>
-                                <button @click="detailTab = 'ct'" :class="detailTab === 'ct' ? 'border-brand-500 text-brand-600' : 'border-transparent text-gray-500'" :aria-selected="detailTab === 'ct'" role="tab" class="px-4 py-2 border-b-2 font-medium transition-all duration-200 whitespace-nowrap">CT</button>
-                                <button @click="detailTab = 'reminders'; loadReminders()" :class="detailTab === 'reminders' ? 'border-brand-500 text-brand-600' : 'border-transparent text-gray-500'" :aria-selected="detailTab === 'reminders'" role="tab" class="px-4 py-2 border-b-2 font-medium transition-all duration-200 whitespace-nowrap relative">
+                                <button @click="detailTab = 'maintenance'" :class="detailTab === 'maintenance' ? 'border-brand-500 text-brand-600' : 'border-transparent text-gray-500'" :aria-selected="detailTab === 'maintenance'" role="tab" class="px-3 py-2 border-b-2 font-medium transition-all duration-200 whitespace-nowrap text-sm">Entretiens</button>
+                                <button @click="detailTab = 'ct'" :class="detailTab === 'ct' ? 'border-brand-500 text-brand-600' : 'border-transparent text-gray-500'" :aria-selected="detailTab === 'ct'" role="tab" class="px-3 py-2 border-b-2 font-medium transition-all duration-200 whitespace-nowrap text-sm">CT</button>
+                                <button @click="detailTab = 'fuel'; loadFuel()" :class="detailTab === 'fuel' ? 'border-brand-500 text-brand-600' : 'border-transparent text-gray-500'" :aria-selected="detailTab === 'fuel'" role="tab" class="px-3 py-2 border-b-2 font-medium transition-all duration-200 whitespace-nowrap text-sm">Carburant</button>
+                                <button @click="detailTab = 'tax'; loadTaxInsurance()" :class="detailTab === 'tax' ? 'border-brand-500 text-brand-600' : 'border-transparent text-gray-500'" :aria-selected="detailTab === 'tax'" role="tab" class="px-3 py-2 border-b-2 font-medium transition-all duration-200 whitespace-nowrap text-sm">Taxes</button>
+                                <button @click="detailTab = 'notes'; loadNotes()" :class="detailTab === 'notes' ? 'border-brand-500 text-brand-600' : 'border-transparent text-gray-500'" :aria-selected="detailTab === 'notes'" role="tab" class="px-3 py-2 border-b-2 font-medium transition-all duration-200 whitespace-nowrap text-sm">Notes</button>
+                                <button @click="detailTab = 'reminders'; loadReminders()" :class="detailTab === 'reminders' ? 'border-brand-500 text-brand-600' : 'border-transparent text-gray-500'" :aria-selected="detailTab === 'reminders'" role="tab" class="px-3 py-2 border-b-2 font-medium transition-all duration-200 whitespace-nowrap text-sm relative">
                                     Rappels
                                     <span x-show="reminderBadge > 0" class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center" x-text="reminderBadge"></span>
                                 </button>
-                                <button @click="detailTab = 'budget'; loadStats(); $nextTick(() => renderCharts())" :class="detailTab === 'budget' ? 'border-brand-500 text-brand-600' : 'border-transparent text-gray-500'" :aria-selected="detailTab === 'budget'" role="tab" class="px-4 py-2 border-b-2 font-medium transition-all duration-200 whitespace-nowrap">Budget</button>
-                                <button @click="detailTab = 'docs'" :class="detailTab === 'docs' ? 'border-brand-500 text-brand-600' : 'border-transparent text-gray-500'" :aria-selected="detailTab === 'docs'" role="tab" class="px-4 py-2 border-b-2 font-medium transition-all duration-200 whitespace-nowrap">Documents</button>
+                                <button @click="detailTab = 'budget'; loadStats(); $nextTick(() => renderCharts())" :class="detailTab === 'budget' ? 'border-brand-500 text-brand-600' : 'border-transparent text-gray-500'" :aria-selected="detailTab === 'budget'" role="tab" class="px-3 py-2 border-b-2 font-medium transition-all duration-200 whitespace-nowrap text-sm">Budget</button>
+                                <button @click="detailTab = 'docs'" :class="detailTab === 'docs' ? 'border-brand-500 text-brand-600' : 'border-transparent text-gray-500'" :aria-selected="detailTab === 'docs'" role="tab" class="px-3 py-2 border-b-2 font-medium transition-all duration-200 whitespace-nowrap text-sm">Documents</button>
+                                <button @click="detailTab = 'sharing'; loadAccess()" :class="detailTab === 'sharing' ? 'border-brand-500 text-brand-600' : 'border-transparent text-gray-500'" :aria-selected="detailTab === 'sharing'" role="tab" class="px-3 py-2 border-b-2 font-medium transition-all duration-200 whitespace-nowrap text-sm">Partage</button>
                             </div>
 
                             <!-- Analysis tab -->
@@ -810,6 +873,276 @@
                             </div>
 
 
+                            <!-- Fuel tab -->
+                            <div x-show="detailTab === 'fuel'">
+                                <!-- Loading -->
+                                <div x-show="fuelLoading" class="space-y-4">
+                                    <div class="grid grid-cols-3 gap-4">
+                                        <div class="skeleton h-20 rounded-xl"></div>
+                                        <div class="skeleton h-20 rounded-xl"></div>
+                                        <div class="skeleton h-20 rounded-xl"></div>
+                                    </div>
+                                    <div class="skeleton h-48 rounded-xl"></div>
+                                </div>
+
+                                <div x-show="!fuelLoading">
+                                    <!-- Summary cards -->
+                                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+                                        <div class="bg-white rounded-xl shadow-sm border p-4 text-center">
+                                            <p class="text-2xl font-bold text-amber-600" x-text="fuelStats?.avg_consumption ? fuelStats.avg_consumption.toFixed(1) : '—'"></p>
+                                            <p class="text-xs text-gray-500">L/100km moyenne</p>
+                                        </div>
+                                        <div class="bg-white rounded-xl shadow-sm border p-4 text-center">
+                                            <p class="text-2xl font-bold text-brand-600" x-text="fuelStats?.total_cost ? fuelStats.total_cost.toFixed(0) + ' EUR' : '—'"></p>
+                                            <p class="text-xs text-gray-500">Total depense</p>
+                                        </div>
+                                        <div class="bg-white rounded-xl shadow-sm border p-4 text-center">
+                                            <p class="text-2xl font-bold text-gray-700" x-text="fuelRecords.length"></p>
+                                            <p class="text-xs text-gray-500">Pleins enregistres</p>
+                                        </div>
+                                    </div>
+
+                                    <!-- Chart -->
+                                    <div class="border rounded-xl p-4 mb-6" x-show="fuelStats?.records?.length > 0">
+                                        <h4 class="font-bold text-sm text-gray-700 mb-3">Evolution de la consommation (L/100km)</h4>
+                                        <canvas x-ref="fuelChart" height="200"></canvas>
+                                    </div>
+
+                                    <!-- Add button -->
+                                    <div class="flex justify-between items-center mb-4">
+                                        <h4 class="font-bold text-gray-700">Pleins recents</h4>
+                                        <button @click="showAddFuelModal = true" class="bg-brand-600 text-white px-4 py-2 rounded-lg hover:bg-brand-700 transition-all duration-200 flex items-center gap-2 text-sm">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                                            Ajouter un plein
+                                        </button>
+                                    </div>
+
+                                    <!-- Fuel records list -->
+                                    <div x-show="fuelRecords.length === 0" class="text-center py-10 text-gray-400">
+                                        Aucun plein enregistre. Ajoutez votre premier plein !
+                                    </div>
+                                    <div class="space-y-2">
+                                        <template x-for="f in fuelRecords" :key="f.id">
+                                            <div class="border rounded-lg p-3 group flex items-center justify-between">
+                                                <div class="flex-1">
+                                                    <div class="flex items-center gap-3">
+                                                        <span class="font-medium text-sm" x-text="f.date"></span>
+                                                        <span class="text-gray-500 text-sm" x-text="f.mileage ? f.mileage.toLocaleString() + ' km' : ''"></span>
+                                                        <span x-show="f.is_full_tank" class="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded">Plein</span>
+                                                    </div>
+                                                    <div class="flex items-center gap-4 text-sm text-gray-600 mt-1">
+                                                        <span x-text="f.liters ? f.liters.toFixed(1) + ' L' : ''"></span>
+                                                        <span class="font-medium text-brand-700" x-text="f.price_total ? f.price_total.toFixed(2) + ' EUR' : ''"></span>
+                                                        <span x-show="f.station_name" class="text-gray-400" x-text="f.station_name"></span>
+                                                    </div>
+                                                </div>
+                                                <button @click="deleteFuel(f.id)" class="text-gray-300 hover:text-red-500 transition-all duration-200 opacity-0 group-hover:opacity-100 ml-2" title="Supprimer">
+                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                                </button>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Add Fuel Modal -->
+                            <div x-show="showAddFuelModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" x-cloak>
+                                <div class="bg-white rounded-xl p-6 w-full max-w-md mx-4 shadow-xl" @click.away="showAddFuelModal = false">
+                                    <h3 class="text-xl font-bold mb-4">Ajouter un plein</h3>
+                                    <form @submit.prevent="addFuel()">
+                                        <div class="space-y-3">
+                                            <div>
+                                                <label class="block text-sm font-medium text-gray-700 mb-1">Date *</label>
+                                                <input x-model="newFuel.date" type="date" required class="w-full border rounded-lg px-3 py-2 transition-all duration-200 focus:ring-2 focus:ring-brand-500">
+                                            </div>
+                                            <div>
+                                                <label class="block text-sm font-medium text-gray-700 mb-1">Kilometrage *</label>
+                                                <input x-model="newFuel.mileage" type="number" required min="0" placeholder="Ex: 85430" class="w-full border rounded-lg px-3 py-2 transition-all duration-200 focus:ring-2 focus:ring-brand-500">
+                                            </div>
+                                            <div class="grid grid-cols-2 gap-3">
+                                                <div>
+                                                    <label class="block text-sm font-medium text-gray-700 mb-1">Litres *</label>
+                                                    <input x-model="newFuel.liters" type="number" step="0.01" required min="0" placeholder="45.2" class="w-full border rounded-lg px-3 py-2 transition-all duration-200 focus:ring-2 focus:ring-brand-500">
+                                                </div>
+                                                <div>
+                                                    <label class="block text-sm font-medium text-gray-700 mb-1">Prix total *</label>
+                                                    <input x-model="newFuel.price_total" type="number" step="0.01" required min="0" placeholder="78.50" class="w-full border rounded-lg px-3 py-2 transition-all duration-200 focus:ring-2 focus:ring-brand-500">
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <label class="block text-sm font-medium text-gray-700 mb-1">Station</label>
+                                                <input x-model="newFuel.station_name" type="text" placeholder="Ex: TotalEnergies Autoroute" class="w-full border rounded-lg px-3 py-2 transition-all duration-200 focus:ring-2 focus:ring-brand-500">
+                                            </div>
+                                            <div class="flex items-center gap-2">
+                                                <input x-model="newFuel.is_full_tank" type="checkbox" id="fullTank" class="rounded border-gray-300 text-brand-600 focus:ring-brand-500">
+                                                <label for="fullTank" class="text-sm text-gray-700">Plein complet</label>
+                                            </div>
+                                        </div>
+                                        <div class="flex gap-3 mt-6">
+                                            <button type="button" @click="showAddFuelModal = false" class="flex-1 py-2 border rounded-lg hover:bg-gray-50 transition-all duration-200">Annuler</button>
+                                            <button type="submit" class="flex-1 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 transition-all duration-200">Ajouter</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+
+                            <!-- Tax/Insurance tab -->
+                            <div x-show="detailTab === 'tax'">
+                                <div x-show="taxLoading" class="space-y-3">
+                                    <template x-for="i in 3" :key="i">
+                                        <div class="skeleton h-16 w-full rounded-lg"></div>
+                                    </template>
+                                </div>
+
+                                <div x-show="!taxLoading">
+                                    <div class="flex justify-between items-center mb-4">
+                                        <h4 class="font-bold text-gray-700">Taxes & Assurances</h4>
+                                        <button @click="showAddTaxModal = true" class="bg-brand-600 text-white px-4 py-2 rounded-lg hover:bg-brand-700 transition-all duration-200 flex items-center gap-2 text-sm">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                                            Ajouter
+                                        </button>
+                                    </div>
+
+                                    <div x-show="taxRecords.length === 0" class="text-center py-10 text-gray-400">
+                                        Aucune taxe ou assurance enregistree.
+                                    </div>
+                                    <div class="space-y-2">
+                                        <template x-for="rec in taxRecords" :key="rec.id">
+                                            <div class="border rounded-lg p-4 group">
+                                                <div class="flex justify-between items-start">
+                                                    <div class="flex-1">
+                                                        <div class="flex items-center gap-2 mb-1">
+                                                            <span class="text-xs px-2 py-0.5 rounded-full font-medium"
+                                                                  :class="rec.record_type === 'insurance' ? 'bg-blue-100 text-blue-700' : rec.record_type === 'tax' ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-600'"
+                                                                  x-text="rec.record_type === 'insurance' ? 'Assurance' : rec.record_type === 'tax' ? 'Taxe' : rec.record_type === 'toll' ? 'Peage' : rec.record_type"></span>
+                                                            <span class="font-medium" x-text="rec.name"></span>
+                                                            <span class="text-xs px-2 py-0.5 rounded-full border font-medium" :class="getTaxStatusClass(rec)" x-text="getTaxStatusLabel(rec)"></span>
+                                                        </div>
+                                                        <div class="text-sm text-gray-600 space-y-0.5">
+                                                            <p x-show="rec.provider" x-text="'Fournisseur: ' + rec.provider"></p>
+                                                            <p><span class="font-medium">Date:</span> <span x-text="rec.date"></span> — <span class="font-medium text-brand-700" x-text="rec.cost ? rec.cost.toFixed(2) + ' EUR' : ''"></span></p>
+                                                            <p x-show="rec.next_renewal_date"><span class="font-medium">Echeance:</span> <span x-text="rec.next_renewal_date"></span></p>
+                                                        </div>
+                                                    </div>
+                                                    <button @click="deleteTaxInsurance(rec.id)" class="text-gray-300 hover:text-red-500 transition-all duration-200 opacity-0 group-hover:opacity-100" title="Supprimer">
+                                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Add Tax Modal -->
+                            <div x-show="showAddTaxModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" x-cloak>
+                                <div class="bg-white rounded-xl p-6 w-full max-w-md mx-4 shadow-xl" @click.away="showAddTaxModal = false">
+                                    <h3 class="text-xl font-bold mb-4">Ajouter taxe / assurance</h3>
+                                    <form @submit.prevent="addTaxInsurance()">
+                                        <div class="space-y-3">
+                                            <div>
+                                                <label class="block text-sm font-medium text-gray-700 mb-1">Type *</label>
+                                                <select x-model="newTax.record_type" required class="w-full border rounded-lg px-3 py-2 transition-all duration-200 focus:ring-2 focus:ring-brand-500">
+                                                    <option value="insurance">Assurance</option>
+                                                    <option value="tax">Taxe</option>
+                                                    <option value="toll">Peage / Vignette</option>
+                                                    <option value="other">Autre</option>
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label class="block text-sm font-medium text-gray-700 mb-1">Nom *</label>
+                                                <input x-model="newTax.name" type="text" required placeholder="Ex: Assurance tous risques" class="w-full border rounded-lg px-3 py-2 transition-all duration-200 focus:ring-2 focus:ring-brand-500">
+                                            </div>
+                                            <div>
+                                                <label class="block text-sm font-medium text-gray-700 mb-1">Fournisseur</label>
+                                                <input x-model="newTax.provider" type="text" placeholder="Ex: MAIF, AXA..." class="w-full border rounded-lg px-3 py-2 transition-all duration-200 focus:ring-2 focus:ring-brand-500">
+                                            </div>
+                                            <div class="grid grid-cols-2 gap-3">
+                                                <div>
+                                                    <label class="block text-sm font-medium text-gray-700 mb-1">Date *</label>
+                                                    <input x-model="newTax.date" type="date" required class="w-full border rounded-lg px-3 py-2 transition-all duration-200 focus:ring-2 focus:ring-brand-500">
+                                                </div>
+                                                <div>
+                                                    <label class="block text-sm font-medium text-gray-700 mb-1">Cout (EUR) *</label>
+                                                    <input x-model="newTax.cost" type="number" step="0.01" required min="0" placeholder="650" class="w-full border rounded-lg px-3 py-2 transition-all duration-200 focus:ring-2 focus:ring-brand-500">
+                                                </div>
+                                            </div>
+                                            <div class="grid grid-cols-2 gap-3">
+                                                <div>
+                                                    <label class="block text-sm font-medium text-gray-700 mb-1">Prochaine echeance</label>
+                                                    <input x-model="newTax.next_renewal_date" type="date" class="w-full border rounded-lg px-3 py-2 transition-all duration-200 focus:ring-2 focus:ring-brand-500">
+                                                </div>
+                                                <div>
+                                                    <label class="block text-sm font-medium text-gray-700 mb-1">Frequence</label>
+                                                    <select x-model="newTax.renewal_frequency" class="w-full border rounded-lg px-3 py-2 transition-all duration-200 focus:ring-2 focus:ring-brand-500">
+                                                        <option value="monthly">Mensuel</option>
+                                                        <option value="quarterly">Trimestriel</option>
+                                                        <option value="semi-annual">Semestriel</option>
+                                                        <option value="annual">Annuel</option>
+                                                        <option value="one-time">Unique</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="flex gap-3 mt-6">
+                                            <button type="button" @click="showAddTaxModal = false" class="flex-1 py-2 border rounded-lg hover:bg-gray-50 transition-all duration-200">Annuler</button>
+                                            <button type="submit" class="flex-1 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 transition-all duration-200">Ajouter</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+
+                            <!-- Notes tab -->
+                            <div x-show="detailTab === 'notes'">
+                                <div x-show="notesLoading" class="space-y-3">
+                                    <div class="skeleton h-20 w-full rounded-lg"></div>
+                                    <div class="skeleton h-16 w-full rounded-lg"></div>
+                                    <div class="skeleton h-16 w-full rounded-lg"></div>
+                                </div>
+
+                                <div x-show="!notesLoading">
+                                    <!-- Add note -->
+                                    <div class="mb-4">
+                                        <div class="flex gap-2">
+                                            <textarea x-model="newNoteContent" placeholder="Ajouter une note..." rows="2" class="flex-1 border rounded-lg px-3 py-2 text-sm transition-all duration-200 focus:ring-2 focus:ring-brand-500 resize-none"></textarea>
+                                            <button @click="addNote()" :disabled="!newNoteContent.trim()" class="bg-brand-600 text-white px-4 rounded-lg hover:bg-brand-700 transition-all duration-200 disabled:opacity-50 text-sm self-end py-2">
+                                                Ajouter
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <!-- Search -->
+                                    <div class="mb-4">
+                                        <input x-model="notesSearch" @input.debounce.400ms="loadNotes()" type="text" placeholder="Rechercher dans les notes..." class="w-full border rounded-lg px-3 py-2 text-sm transition-all duration-200 focus:ring-2 focus:ring-brand-500">
+                                    </div>
+
+                                    <!-- Notes list -->
+                                    <div x-show="vehicleNotes.length === 0" class="text-center py-10 text-gray-400">
+                                        Aucune note. Ajoutez votre premiere note !
+                                    </div>
+                                    <div class="space-y-2">
+                                        <template x-for="note in vehicleNotes" :key="note.id">
+                                            <div class="border rounded-lg p-3 group" :class="note.pinned ? 'border-amber-300 bg-amber-50' : ''">
+                                                <div class="flex items-start justify-between gap-2">
+                                                    <div class="flex-1 min-w-0">
+                                                        <p class="text-sm whitespace-pre-wrap" x-text="note.content"></p>
+                                                        <p class="text-xs text-gray-400 mt-2" x-text="new Date(note.created_at).toLocaleDateString('fr-FR', {day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'})"></p>
+                                                    </div>
+                                                    <div class="flex items-center gap-1 flex-shrink-0">
+                                                        <button @click="toggleNotePin(note)" :class="note.pinned ? 'pin-active' : 'pin-inactive'" class="transition-all duration-200" title="Epingler">
+                                                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>
+                                                        </button>
+                                                        <button @click="deleteNote(note.id)" class="text-gray-300 hover:text-red-500 transition-all duration-200 opacity-0 group-hover:opacity-100" title="Supprimer">
+                                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </div>
+                            </div>
+
                             <!-- Reminders tab -->
                             <div x-show="detailTab === 'reminders'">
                                 <div class="flex items-center justify-between mb-4">
@@ -916,6 +1249,67 @@
                                     </template>
                                 </div>
                             </div>
+
+                            <!-- Sharing tab -->
+                            <div x-show="detailTab === 'sharing'">
+                                <div x-show="accessLoading" class="space-y-3">
+                                    <div class="skeleton h-16 w-full rounded-lg"></div>
+                                    <div class="skeleton h-16 w-full rounded-lg"></div>
+                                </div>
+
+                                <div x-show="!accessLoading">
+                                    <!-- Current user role -->
+                                    <div class="mb-4 flex items-center gap-2">
+                                        <span class="text-sm text-gray-600">Votre role :</span>
+                                        <span class="text-xs px-2 py-1 rounded-full font-medium"
+                                              :class="getCurrentUserRole() === 'owner' ? 'bg-brand-100 text-brand-700' : getCurrentUserRole() === 'editor' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'"
+                                              x-text="getCurrentUserRole() === 'owner' ? 'Proprietaire' : getCurrentUserRole() === 'editor' ? 'Editeur' : 'Lecteur'"></span>
+                                    </div>
+
+                                    <!-- Invite form (only for owner/editor) -->
+                                    <div x-show="getCurrentUserRole() === 'owner' || getCurrentUserRole() === 'editor'" class="border rounded-lg p-4 mb-6 bg-gray-50">
+                                        <h4 class="font-bold text-gray-700 mb-3">Inviter quelqu'un</h4>
+                                        <form @submit.prevent="shareVehicle()" class="flex flex-col sm:flex-row gap-2">
+                                            <input x-model="shareEmail" type="email" required placeholder="email@exemple.com" class="flex-1 border rounded-lg px-3 py-2 text-sm transition-all duration-200 focus:ring-2 focus:ring-brand-500">
+                                            <select x-model="shareRole" class="border rounded-lg px-3 py-2 text-sm">
+                                                <option value="viewer">Lecteur</option>
+                                                <option value="editor">Editeur</option>
+                                            </select>
+                                            <button type="submit" :disabled="!shareEmail.trim()" class="bg-brand-600 text-white px-4 py-2 rounded-lg hover:bg-brand-700 transition-all duration-200 text-sm disabled:opacity-50 whitespace-nowrap">
+                                                Partager
+                                            </button>
+                                        </form>
+                                    </div>
+
+                                    <!-- Access list -->
+                                    <h4 class="font-bold text-gray-700 mb-3">Personnes ayant acces</h4>
+                                    <div x-show="vehicleAccess.length === 0" class="text-center py-8 text-gray-400">
+                                        Aucun partage. Ce vehicule n'est accessible que par vous.
+                                    </div>
+                                    <div class="space-y-2">
+                                        <template x-for="access in vehicleAccess" :key="access.id">
+                                            <div class="border rounded-lg p-3 flex items-center justify-between group">
+                                                <div class="flex items-center gap-3">
+                                                    <div class="w-8 h-8 rounded-full bg-brand-100 flex items-center justify-center">
+                                                        <span class="text-brand-700 font-medium text-sm" x-text="(access.email || access.user_email || '?')[0].toUpperCase()"></span>
+                                                    </div>
+                                                    <div>
+                                                        <p class="text-sm font-medium" x-text="access.email || access.user_email || 'Utilisateur'"></p>
+                                                        <span class="text-xs px-2 py-0.5 rounded-full"
+                                                              :class="access.role === 'owner' ? 'bg-brand-100 text-brand-700' : access.role === 'editor' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'"
+                                                              x-text="access.role === 'owner' ? 'Proprietaire' : access.role === 'editor' ? 'Editeur' : 'Lecteur'"></span>
+                                                    </div>
+                                                </div>
+                                                <button x-show="access.role !== 'owner' && (getCurrentUserRole() === 'owner' || getCurrentUserRole() === 'editor')"
+                                                        @click="revokeAccess(access.id)"
+                                                        class="text-gray-300 hover:text-red-500 transition-all duration-200 opacity-0 group-hover:opacity-100" title="Revoquer l'acces">
+                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                                                </button>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1003,6 +1397,87 @@
                                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
                                 </button>
                             </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SETTINGS VIEW -->
+                <div x-show="view === 'settings'" x-cloak>
+                    <h2 class="text-2xl font-bold text-gray-800 mb-6">Settings</h2>
+
+                    <div class="grid md:grid-cols-3 gap-6">
+                        <!-- Profile section -->
+                        <div class="md:col-span-2 space-y-6">
+                            <!-- Profile -->
+                            <div class="bg-white rounded-xl shadow-sm border p-6">
+                                <h3 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                                    <svg class="w-5 h-5 text-brand-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                                    Profil
+                                </h3>
+                                <div class="mb-4">
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                                    <input type="email" :value="currentUser?.email" disabled class="w-full border rounded-lg px-3 py-2 bg-gray-50 text-gray-500 cursor-not-allowed">
+                                </div>
+
+                                <h4 class="font-medium text-gray-700 mb-3 mt-6">Changer le mot de passe</h4>
+                                <form @submit.prevent="changePassword()" class="space-y-3">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Mot de passe actuel</label>
+                                        <input x-model="changePasswordForm.current" type="password" required class="w-full border rounded-lg px-3 py-2 transition-all duration-200 focus:ring-2 focus:ring-brand-500">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Nouveau mot de passe</label>
+                                        <input x-model="changePasswordForm.new_password" type="password" required minlength="6" class="w-full border rounded-lg px-3 py-2 transition-all duration-200 focus:ring-2 focus:ring-brand-500">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Confirmer le nouveau mot de passe</label>
+                                        <input x-model="changePasswordForm.confirm" type="password" required minlength="6" class="w-full border rounded-lg px-3 py-2 transition-all duration-200 focus:ring-2 focus:ring-brand-500">
+                                    </div>
+                                    <button type="submit" class="bg-brand-600 text-white px-6 py-2 rounded-lg hover:bg-brand-700 transition-all duration-200 text-sm">
+                                        Modifier le mot de passe
+                                    </button>
+                                </form>
+                            </div>
+
+                            <!-- Language -->
+                            <div class="bg-white rounded-xl shadow-sm border p-6">
+                                <h3 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                                    <svg class="w-5 h-5 text-brand-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129"/></svg>
+                                    Langue
+                                </h3>
+                                <div class="flex gap-2 flex-wrap">
+                                    <button @click="changeLocale('fr')" class="px-4 py-2 rounded-lg border text-sm font-medium transition-all duration-200" :class="I18N.currentLocale === 'fr' ? 'bg-brand-600 text-white border-brand-600' : 'hover:bg-gray-50'">Francais</button>
+                                    <button @click="changeLocale('en')" class="px-4 py-2 rounded-lg border text-sm font-medium transition-all duration-200" :class="I18N.currentLocale === 'en' ? 'bg-brand-600 text-white border-brand-600' : 'hover:bg-gray-50'">English</button>
+                                    <button @click="changeLocale('de')" class="px-4 py-2 rounded-lg border text-sm font-medium transition-all duration-200" :class="I18N.currentLocale === 'de' ? 'bg-brand-600 text-white border-brand-600' : 'hover:bg-gray-50'">Deutsch</button>
+                                    <button @click="changeLocale('es')" class="px-4 py-2 rounded-lg border text-sm font-medium transition-all duration-200" :class="I18N.currentLocale === 'es' ? 'bg-brand-600 text-white border-brand-600' : 'hover:bg-gray-50'">Espanol</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Sidebar: shared vehicles -->
+                        <div>
+                            <div class="bg-white rounded-xl shadow-sm border p-6">
+                                <h3 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                                    <svg class="w-5 h-5 text-brand-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+                                    Vehicules partages avec moi
+                                </h3>
+                                <div x-show="sharedWithMe.length === 0" class="text-sm text-gray-400 text-center py-4">
+                                    Aucun vehicule partage avec vous.
+                                </div>
+                                <div class="space-y-2">
+                                    <template x-for="sv in sharedWithMe" :key="sv.id">
+                                        <div class="border rounded-lg p-3 flex items-center justify-between">
+                                            <div>
+                                                <p class="font-medium text-sm" x-text="sv.vehicle_name || sv.name || 'Vehicule'"></p>
+                                                <p class="text-xs text-gray-500" x-text="'Par ' + (sv.owner_email || '?')"></p>
+                                            </div>
+                                            <span class="text-xs px-2 py-0.5 rounded-full"
+                                                  :class="sv.role === 'editor' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'"
+                                                  x-text="sv.role === 'editor' ? 'Editeur' : 'Lecteur'"></span>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
