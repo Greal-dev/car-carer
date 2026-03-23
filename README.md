@@ -4,9 +4,11 @@
 
 **Your AI-powered car maintenance companion**
 
+[![CI](https://github.com/Greal-dev/car-carer/actions/workflows/ci.yml/badge.svg)](https://github.com/Greal-dev/car-carer/actions)
 ![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)
 ![License MIT](https://img.shields.io/badge/license-MIT-green.svg)
 ![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)
+[![GitHub Release](https://img.shields.io/github/v/release/Greal-dev/car-carer)](https://github.com/Greal-dev/car-carer/releases)
 
 ---
 
