@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Car Carer - AI-Powered Car Maintenance Tracker</title>
+    <meta name="description" content="Self-hosted, open-source car maintenance tracker. Upload invoices and photos, AI extracts data automatically, chat to query your history.">
+    <meta property="og:title" content="Car Carer - AI-Powered Car Maintenance Tracker">
+    <meta property="og:description" content="Upload invoices, AI extracts everything. Chat to query your car history. Self-hosted, open-source.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://greal-dev.github.io/car-carer/">
+    <meta property="og:image" content="https://raw.githubusercontent.com/Greal-dev/car-carer/master/docs/screenshots/dashboard.png">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Car Carer - AI-Powered Car Maintenance Tracker">
+    <meta name="twitter:description" content="Upload invoices, AI extracts everything. Chat to query your car history.">
+    <meta name="twitter:image" content="https://raw.githubusercontent.com/Greal-dev/car-carer/master/docs/screenshots/dashboard.png">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>tailwind.config={theme:{extend:{fontFamily:{sans:['Inter','sans-serif']},colors:{brand:{50:'#f0f9ff',100:'#e0f2fe',200:'#bae6fd',500:'#0ea5e9',600:'#0284c7',700:'#0369a1',800:'#075985',900:'#0c4a6e'}}}}}</script>
+</head>
+<body class="bg-white font-sans">
+    <section class="bg-gradient-to-br from-brand-700 to-brand-900 text-white py-20 px-6">
+        <div class="max-w-4xl mx-auto text-center">
+            <h1 class="text-5xl font-extrabold mb-4">Car Carer</h1>
+            <p class="text-xl text-brand-200 mb-8">Your AI-powered car maintenance companion.<br>Upload invoices. AI extracts data. Chat queries your history.</p>
+            <div class="flex gap-4 justify-center flex-wrap">
+                <a href="https://github.com/Greal-dev/car-carer" class="bg-white text-brand-700 px-8 py-3 rounded-lg font-semibold hover:bg-brand-50 transition">View on GitHub</a>
+                <a href="https://github.com/Greal-dev/car-carer/releases" class="border-2 border-white text-white px-8 py-3 rounded-lg font-semibold hover:bg-white/10 transition">Download v0.2.0</a>
+            </div>
+        </div>
+    </section>
+
+    <section class="py-16 px-6">
+        <div class="max-w-5xl mx-auto">
+            <h2 class="text-3xl font-bold text-center text-gray-900 mb-12">How it works</h2>
+            <div class="grid md:grid-cols-3 gap-8">
+                <div class="text-center">
+                    <div class="w-16 h-16 mx-auto mb-4 bg-brand-100 rounded-2xl flex items-center justify-center text-3xl font-bold text-brand-700">1</div>
+                    <h3 class="font-semibold text-lg mb-2">Upload</h3>
+                    <p class="text-gray-600">Drop a PDF invoice, snap a photo, or batch-upload 50+ documents at once.</p>
+                </div>
+                <div class="text-center">
+                    <div class="w-16 h-16 mx-auto mb-4 bg-brand-100 rounded-2xl flex items-center justify-center text-3xl font-bold text-brand-700">2</div>
+                    <h3 class="font-semibold text-lg mb-2">AI Extracts</h3>
+                    <p class="text-gray-600">Gemini Flash 2.0 reads your documents and extracts dates, costs, parts, mileage automatically.</p>
+                </div>
+                <div class="text-center">
+                    <div class="w-16 h-16 mx-auto mb-4 bg-brand-100 rounded-2xl flex items-center justify-center text-3xl font-bold text-brand-700">3</div>
+                    <h3 class="font-semibold text-lg mb-2">Chat</h3>
+                    <p class="text-gray-600">Ask Claude anything about your car. 13 specialized tools query your database.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="bg-gray-50 py-16 px-6">
+        <div class="max-w-5xl mx-auto">
+            <h2 class="text-3xl font-bold text-center text-gray-900 mb-12">Screenshots</h2>
+            <div class="grid md:grid-cols-2 gap-6">
+                <img src="https://raw.githubusercontent.com/Greal-dev/car-carer/master/docs/screenshots/dashboard.png" alt="Dashboard" class="rounded-xl shadow-lg border">
+                <img src="https://raw.githubusercontent.com/Greal-dev/car-carer/master/docs/screenshots/fuel.png" alt="Fuel tracking" class="rounded-xl shadow-lg border">
+                <img src="https://raw.githubusercontent.com/Greal-dev/car-carer/master/docs/screenshots/taxes.png" alt="Tax and insurance tracking" class="rounded-xl shadow-lg border">
+                <img src="https://raw.githubusercontent.com/Greal-dev/car-carer/master/docs/screenshots/chat.png" alt="AI Chat assistant" class="rounded-xl shadow-lg border">
+            </div>
+        </div>
+    </section>
+
+    <section class="py-16 px-6">
+        <div class="max-w-3xl mx-auto text-center">
+            <h2 class="text-3xl font-bold text-gray-900 mb-6">Get started in 30 seconds</h2>
+            <div class="bg-gray-900 rounded-xl p-6 text-left text-green-400 font-mono text-sm overflow-x-auto">
+                <p>$ git clone https://github.com/Greal-dev/car-carer.git</p>
+                <p>$ cd car-carer &amp;&amp; cp .env.example .env</p>
+                <p class="text-gray-500"># Add your ANTHROPIC_API_KEY and OPENROUTER_API_KEY</p>
+                <p>$ docker compose up -d</p>
+                <p class="text-gray-500"># Open http://localhost:8200</p>
+            </div>
+        </div>
+    </section>
+
+    <section class="bg-gray-50 py-16 px-6">
+        <div class="max-w-5xl mx-auto">
+            <h2 class="text-3xl font-bold text-center text-gray-900 mb-12">Features</h2>
+            <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div class="bg-white p-5 rounded-xl border"><h3 class="font-semibold mb-1">AI Document Extraction</h3><p class="text-sm text-gray-600">Gemini Flash 2.0 reads PDFs and photos. Extracts dates, costs, parts, mileage.</p></div>
+                <div class="bg-white p-5 rounded-xl border"><h3 class="font-semibold mb-1">Intelligent Chat</h3><p class="text-sm text-gray-600">Claude Sonnet 4 with 13 tools. Ask anything about your maintenance history.</p></div>
+                <div class="bg-white p-5 rounded-xl border"><h3 class="font-semibold mb-1">Fuel Tracking</h3><p class="text-sm text-gray-600">L/100km consumption charts, cost per km, station history.</p></div>
+                <div class="bg-white p-5 rounded-xl border"><h3 class="font-semibold mb-1">Tax and Insurance</h3><p class="text-sm text-gray-600">Track renewal dates, get expiry alerts. Never miss a deadline.</p></div>
+                <div class="bg-white p-5 rounded-xl border"><h3 class="font-semibold mb-1">Vehicle Sharing</h3><p class="text-sm text-gray-600">Share with your mechanic or family. Owner/editor/viewer roles.</p></div>
+                <div class="bg-white p-5 rounded-xl border"><h3 class="font-semibold mb-1">PWA Mobile</h3><p class="text-sm text-gray-600">Installable on phone. Camera capture for invoices on the go.</p></div>
+                <div class="bg-white p-5 rounded-xl border"><h3 class="font-semibold mb-1">Smart Reminders</h3><p class="text-sm text-gray-600">Trigger on km OR date. Whichever comes first.</p></div>
+                <div class="bg-white p-5 rounded-xl border"><h3 class="font-semibold mb-1">Batch Upload</h3><p class="text-sm text-gray-600">Import 50+ documents at once with real-time SSE progress.</p></div>
+                <div class="bg-white p-5 rounded-xl border"><h3 class="font-semibold mb-1">4 Languages</h3><p class="text-sm text-gray-600">French, English, German, Spanish. Easy to add more.</p></div>
+            </div>
+        </div>
+    </section>
+
+    <footer class="py-10 px-6 text-center text-gray-500 text-sm">
+        <p>Car Carer is open-source (MIT License). Built with FastAPI, Claude, and Gemini.</p>
+        <p class="mt-2">
+            <a href="https://github.com/Greal-dev/car-carer" class="text-brand-600 hover:underline">GitHub</a> -
+            <a href="https://github.com/Greal-dev/car-carer/releases" class="text-brand-600 hover:underline">Releases</a> -
+            <a href="https://github.com/Greal-dev/car-carer/discussions" class="text-brand-600 hover:underline">Discussions</a>
+        </p>
+    </footer>
+</body>
+</html>
