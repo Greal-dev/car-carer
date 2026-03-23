@@ -43,3 +43,5 @@ desktop.ini
 .pytest_cache/
 .coverage
 htmlcov/
+node_modules/
+package-lock.json
