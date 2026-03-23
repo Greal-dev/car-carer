@@ -344,7 +344,7 @@ async def _process_single_file(db: Session, vehicle: Vehicle, file_info: dict, d
 
 
 @router.get("/batch-status/{batch_id}")
-async def batch_status_sse(batch_id: str):
+async def batch_status_sse(batch_id: str, user: User = Depends(get_current_user)):
     """SSE endpoint to stream batch processing progress."""
     async with _batch_lock:
         await _cleanup_expired_batch_jobs()

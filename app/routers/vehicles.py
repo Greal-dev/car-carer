@@ -291,7 +291,7 @@ def get_vehicle(vehicle_id: int, user: User = Depends(get_current_user), db: Ses
 
 @router.patch("/{vehicle_id}", response_model=VehicleOut)
 def update_vehicle(vehicle_id: int, data: VehicleUpdate, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    vehicle = _get_vehicle_or_404(vehicle_id, user, db)
+    vehicle = _get_vehicle_or_404(vehicle_id, user, db, require_role="editor")
     for key, val in data.model_dump(exclude_unset=True).items():
         setattr(vehicle, key, val)
     db.commit()
@@ -301,7 +301,7 @@ def update_vehicle(vehicle_id: int, data: VehicleUpdate, user: User = Depends(ge
 
 @router.delete("/{vehicle_id}", status_code=204)
 def delete_vehicle(vehicle_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    vehicle = _get_vehicle_or_404(vehicle_id, user, db)
+    vehicle = _get_vehicle_or_404(vehicle_id, user, db, require_role="owner")
     db.delete(vehicle)
     db.commit()
 
@@ -386,7 +386,7 @@ def export_vehicle_pdf(vehicle_id: int, user: User = Depends(get_current_user), 
 
 @router.delete("/{vehicle_id}/maintenance/{event_id}", status_code=204)
 def delete_maintenance_event(vehicle_id: int, event_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    _get_vehicle_or_404(vehicle_id, user, db)
+    _get_vehicle_or_404(vehicle_id, user, db, require_role="editor")
     event = db.get(MaintenanceEvent, event_id)
     if not event or event.vehicle_id != vehicle_id:
         raise HTTPException(404, "Entretien non trouve")
@@ -396,7 +396,7 @@ def delete_maintenance_event(vehicle_id: int, event_id: int, user: User = Depend
 
 @router.delete("/{vehicle_id}/ct/{ct_id}", status_code=204)
 def delete_ct_report(vehicle_id: int, ct_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    _get_vehicle_or_404(vehicle_id, user, db)
+    _get_vehicle_or_404(vehicle_id, user, db, require_role="editor")
     ct = db.get(CTReport, ct_id)
     if not ct or ct.vehicle_id != vehicle_id:
         raise HTTPException(404, "CT non trouve")

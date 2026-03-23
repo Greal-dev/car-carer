@@ -6,7 +6,7 @@ from app.enums import VehicleRole
 
 
 class VehicleAccessCreate(BaseModel):
-    user_id: int
+    email: str = Field(..., max_length=255)  # invite by email
     role: VehicleRole
 
 
@@ -18,6 +18,7 @@ class VehicleAccessOut(BaseModel):
     id: int
     vehicle_id: int
     user_id: int
+    user_email: Optional[str] = None
     role: str
     granted_by_user_id: Optional[int]
     created_at: datetime

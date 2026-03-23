@@ -16,7 +16,6 @@ def _require_owner(vehicle_id: int, user: User, db: Session) -> Vehicle:
     if not vehicle:
         raise HTTPException(404, "Vehicule non trouve")
     if vehicle.user_id != user.id:
-        # Check if user has owner role via VehicleAccess
         access = db.query(VehicleAccess).filter(
             VehicleAccess.vehicle_id == vehicle_id,
             VehicleAccess.user_id == user.id,
@@ -27,6 +26,20 @@ def _require_owner(vehicle_id: int, user: User, db: Session) -> Vehicle:
     return vehicle
 
 
+def _access_to_out(access: VehicleAccess, db: Session) -> dict:
+    """Convert a VehicleAccess to dict with user_email populated."""
+    target = db.get(User, access.user_id)
+    return VehicleAccessOut(
+        id=access.id,
+        vehicle_id=access.vehicle_id,
+        user_id=access.user_id,
+        user_email=target.email if target else None,
+        role=access.role,
+        granted_by_user_id=access.granted_by_user_id,
+        created_at=access.created_at,
+    )
+
+
 @router.post("/{vehicle_id}/share", response_model=VehicleAccessOut, status_code=201)
 def share_vehicle(
     vehicle_id: int,
@@ -34,19 +47,17 @@ def share_vehicle(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Share a vehicle with another user by user_id."""
+    """Share a vehicle with another user by email."""
     vehicle = _require_owner(vehicle_id, user, db)
 
-    # Find target user
-    target_user = db.get(User, body.user_id)
+    # Find target user by email
+    target_user = db.query(User).filter(User.email == body.email.lower().strip()).first()
     if not target_user:
-        raise HTTPException(404, "Utilisateur non trouve")
+        raise HTTPException(404, "Utilisateur non trouve avec cet email")
 
-    # Cannot share with yourself
     if target_user.id == user.id:
         raise HTTPException(400, "Impossible de partager avec vous-meme")
 
-    # Check for existing access
     existing = db.query(VehicleAccess).filter(
         VehicleAccess.vehicle_id == vehicle_id,
         VehicleAccess.user_id == target_user.id,
@@ -63,7 +74,7 @@ def share_vehicle(
     db.add(access)
     db.commit()
     db.refresh(access)
-    return access
+    return _access_to_out(access, db)
 
 
 @router.get("/{vehicle_id}/access", response_model=list[VehicleAccessOut])
@@ -74,12 +85,13 @@ def list_vehicle_access(
 ):
     """List all access entries for a vehicle. Only the owner can see the full list."""
     _require_owner(vehicle_id, user, db)
-    return (
+    entries = (
         db.query(VehicleAccess)
         .filter(VehicleAccess.vehicle_id == vehicle_id)
         .order_by(VehicleAccess.created_at.desc())
         .all()
     )
+    return [_access_to_out(a, db) for a in entries]
 
 
 @router.patch("/{vehicle_id}/access/{access_id}", response_model=VehicleAccessOut)
@@ -97,14 +109,13 @@ def update_vehicle_access(
     if not access or access.vehicle_id != vehicle_id:
         raise HTTPException(404, "Acces non trouve")
 
-    # Cannot change the role of the vehicle's direct owner
     if access.user_id == vehicle.user_id and access.role == "owner":
         raise HTTPException(400, "Impossible de modifier le role du proprietaire principal")
 
     access.role = body.role
     db.commit()
     db.refresh(access)
-    return access
+    return _access_to_out(access, db)
 
 
 @router.delete("/{vehicle_id}/access/{access_id}", status_code=204)
@@ -121,19 +132,14 @@ def revoke_vehicle_access(
     if not access or access.vehicle_id != vehicle_id:
         raise HTTPException(404, "Acces non trouve")
 
-    # Cannot revoke the vehicle's direct owner
     if access.user_id == vehicle.user_id:
         raise HTTPException(400, "Impossible de revoquer le proprietaire principal")
 
-    # Count remaining owners to prevent leaving the vehicle ownerless
     owner_count = db.query(VehicleAccess).filter(
         VehicleAccess.vehicle_id == vehicle_id,
         VehicleAccess.role == "owner",
     ).count()
-    # The direct owner (vehicle.user_id) is always an implicit owner
-    # so we only block if this is the last explicit owner AND it IS the direct owner
     if access.role == "owner" and owner_count <= 1:
-        # Still safe if the direct vehicle owner exists
         if vehicle.user_id is None:
             raise HTTPException(400, "Impossible de revoquer le dernier proprietaire")
 
@@ -147,7 +153,7 @@ def list_shared_with_me(
     db: Session = Depends(get_db),
 ):
     """List vehicles shared with the current user (excluding vehicles they directly own)."""
-    return (
+    entries = (
         db.query(VehicleAccess)
         .filter(
             VehicleAccess.user_id == user.id,
@@ -156,3 +162,4 @@ def list_shared_with_me(
         .order_by(VehicleAccess.created_at.desc())
         .all()
     )
+    return [_access_to_out(a, db) for a in entries]
