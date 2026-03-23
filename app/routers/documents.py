@@ -186,6 +186,7 @@ async def batch_upload(
     async with _batch_lock:
         await _cleanup_expired_batch_jobs()
         _batch_jobs[batch_id] = {
+            "user_id": user.id,
             "vehicle_id": vehicle_id,
             "doc_type": doc_type,
             "files": saved_files,
@@ -349,6 +350,8 @@ async def batch_status_sse(batch_id: str, user: User = Depends(get_current_user)
     async with _batch_lock:
         await _cleanup_expired_batch_jobs()
     if batch_id not in _batch_jobs:
+        raise HTTPException(404, "Batch non trouve")
+    if _batch_jobs[batch_id].get("user_id") != user.id:
         raise HTTPException(404, "Batch non trouve")
 
     async def event_stream():

@@ -53,7 +53,7 @@ def share_vehicle(
     # Find target user by email
     target_user = db.query(User).filter(User.email == body.email.lower().strip()).first()
     if not target_user:
-        raise HTTPException(404, "Utilisateur non trouve avec cet email")
+        raise HTTPException(400, "Impossible de partager avec cet utilisateur")
 
     if target_user.id == user.id:
         raise HTTPException(400, "Impossible de partager avec vous-meme")

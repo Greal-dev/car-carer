@@ -72,13 +72,16 @@ def register(body: RegisterRequest, request: Request, response: Response, db: Se
     if len(body.password) < 6:
         raise HTTPException(400, "Mot de passe trop court (min 6 caracteres)")
 
+    # Hash before lookup to prevent timing-based user enumeration
+    hashed = hash_password(body.password)
+
     existing = db.query(User).filter(User.email == body.email.lower().strip()).first()
     if existing:
         raise HTTPException(409, "Email deja utilise")
 
     user = User(
         email=body.email.lower().strip(),
-        hashed_password=hash_password(body.password),
+        hashed_password=hashed,
     )
     db.add(user)
     db.commit()
@@ -141,10 +144,12 @@ class ChangePasswordRequest(BaseModel):
 @router.post("/change-password")
 def change_password(
     body: ChangePasswordRequest,
+    request: Request,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """Change the current user's password."""
+    _check_rate_limit(request)
     if not verify_password(body.current_password, user.hashed_password):
         raise HTTPException(400, "Mot de passe actuel incorrect")
     if len(body.new_password) < 6:
