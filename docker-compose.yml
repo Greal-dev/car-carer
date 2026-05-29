@@ -8,8 +8,8 @@ services:
     volumes:
       - ./data:/app/data
       - ./uploads:/app/uploads
-    env_file:
-      - .env
     environment:
       - DATABASE_URL=sqlite:///./data/care.db
       - UPLOAD_DIR=./uploads
+      - ANTHROPIC_API_KEY=
+      - OPENROUTER_API_KEY=

@@ -21,6 +21,10 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Car Carer", version="0.1.0")
 
+@app.get("/health")
+def health_check():
+    return {"status": "ok"}
+
 # API routes
 app.include_router(auth.router)
 app.include_router(access.router)  # before vehicles (shared-with-me must match before /{vehicle_id})
